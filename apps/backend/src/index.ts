@@ -16,27 +16,114 @@ app.get(
 
         // validate roomId || peerId
 
-        const roomExists = rooms.has(data.roomId);
-        if (!roomExists) {
-          rooms.set(data.roomId, new Map());
+        if (data.type === "create" || data.type === "join") {
+          const roomExists = rooms.has(data.roomId);
+          if (!roomExists) {
+            rooms.set(data.roomId, new Map());
+            const room = rooms.get(data.roomId);
+            room?.set(data.localPeerId, ws);
+            ws.send(
+              JSON.stringify({
+                msg: "Successfully create room",
+              }),
+            );
+            return;
+          }
+
           const room = rooms.get(data.roomId);
-          room?.set(data.peerId, ws);
+          room?.set(data.localPeerId, ws);
+
+          const remotePeerId = Array.from(room?.keys() || []).find(
+            (id) => id !== data.localPeerId,
+          );
+
+          ws.send(
+            JSON.stringify({
+              type: "room-joined",
+              // remotePeerId,
+              msg: "Successfully joined room",
+            }),
+          );
+
+          if (remotePeerId) {
+            const currRoom = rooms.get(data.roomId);
+            const remoteWs = currRoom?.get(remotePeerId);
+
+            remoteWs?.send(
+              JSON.stringify({
+                type: "user-joined",
+                remotePeerId: data.localPeerId,
+                msg: "Successfully joined room",
+              }),
+            );
+          }
+
+          return;
         }
 
-        const room = rooms.get(data.roomId);
-        room?.set(data.peerId, ws);
+        if (data.type === "offer") {
+          const room = rooms.get(data.roomId);
 
-        const size = rooms.size;
+          const remotePeerId = Array.from(room?.keys() || []).find(
+            (id) => id !== data.localPeerId,
+          );
 
-        ws.send(
-          JSON.stringify({
-            type: "joined",
-            msg: "successfully joined room",
-          }),
-        );
-
-        if (size > 1) {
+          if (remotePeerId) {
+            const remoteWs = room?.get(remotePeerId);
+            remoteWs?.send(
+              JSON.stringify({
+                type: "offer",
+                roomId: data.roomId,
+                localPeerId: data.localPeerId,
+                offer: data.offer,
+              }),
+            );
+          }
         }
+
+        if (data.type === "ice-candidate") {
+          const room = rooms.get(data.roomId);
+          // room?.set(data.localPeerId, ws);
+
+          const remotePeerId = Array.from(room?.keys() || []).find(
+            (id) => id !== data.localPeerId,
+          );
+
+          if (remotePeerId) {
+            const remoteWs = room?.get(remotePeerId);
+            remoteWs?.send(
+              JSON.stringify({
+                type: "ice-candidate",
+                roomId: data.roomId,
+                localPeerId: data.localPeerId,
+                candidate: data.candidate,
+              }),
+            );
+          }
+        }
+
+        if (data.type === "answer") {
+          const room = rooms.get(data.roomId);
+
+          const remotePeerId = Array.from(room?.keys() || []).find(
+            (id) => id !== data.localPeerId,
+          );
+
+          if (remotePeerId) {
+            const remoteWs = room?.get(remotePeerId);
+            remoteWs?.send(
+              JSON.stringify({
+                type: "answer",
+                roomId: data.roomId,
+                localPeerId: data.localPeerId,
+                answer: data.answer,
+              }),
+            );
+          }
+        }
+      },
+      onOpen() {
+        console.log("Socket opened");
       },
     };
   }),
