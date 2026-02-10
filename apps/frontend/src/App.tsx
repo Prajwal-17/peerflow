@@ -12,16 +12,16 @@ const config = {
 function App() {
   const { randomUUID } = new ShortUniqueId({ length: 5 });
 
+  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const socketRef = useRef<WebSocket | null>(null);
+  const roomIdRef = useRef<string | null>(null);
+  const dcRef = useRef<RTCDataChannel | null>(null);
+
   const [roomId, setRoomId] = useState(randomUUID());
   const [localPeerId, setLocalPeerId] = useState(randomUUID(16));
   const [remotePeerId, setRemotePeerId] = useState("");
   const [type, setType] = useState<"send" | "receive">();
   const [isConnected, setIsConnected] = useState<boolean>(false);
-
-  const pcRef = useRef<RTCPeerConnection | null>(null);
-  const socketRef = useRef<WebSocket | null>(null);
-
-  const dcRef = useRef<RTCDataChannel | null>(null);
 
   const handleIceCandidate = async (candidate: RTCIceCandidateInit) => {
     try {
@@ -40,7 +40,7 @@ function App() {
         socketRef.current?.send(
           JSON.stringify({
             type: "ice-candidate",
-            roomId: roomId,
+            roomId: roomIdRef.current,
             localPeerId: localPeerId,
             candidate: event.candidate,
           }),
@@ -48,6 +48,12 @@ function App() {
       }
     };
     return pc;
+  };
+
+  const listenOnDataChannel = (pc: RTCPeerConnection) => {
+    pc.ondatachannel = (event) => {
+      console.log("data", event);
+    };
   };
 
   const createDataChannel = (pc: RTCPeerConnection) => {
@@ -68,7 +74,7 @@ function App() {
       socketRef.current?.send(
         JSON.stringify({
           type: "offer",
-          roomId: roomId,
+          roomId: roomIdRef.current,
           localPeerId,
           offer,
         }),
@@ -79,6 +85,7 @@ function App() {
   };
 
   const handleOffer = async (offer: RTCSessionDescriptionInit) => {
+    console.log("pcref", pcRef, socketRef);
     try {
       await pcRef.current?.setRemoteDescription(offer);
       const answer = await pcRef.current?.createAnswer();
@@ -87,7 +94,7 @@ function App() {
       socketRef.current?.send(
         JSON.stringify({
           type: "answer",
-          roomId,
+          roomId: roomIdRef.current,
           localPeerId,
           answer: answer,
         }),
@@ -98,6 +105,7 @@ function App() {
   };
 
   const handleAnswer = async (answer: RTCSessionDescriptionInit) => {
+    console.log("answer", answer);
     try {
       await pcRef.current?.setRemoteDescription(answer);
     } catch (error) {
@@ -125,8 +133,9 @@ function App() {
         }
 
         case "room-joined": {
+          setRemotePeerId(data.remotePeerId);
           const pc = createRTCPeerConnection();
-          createDataChannel(pc);
+          listenOnDataChannel(pc);
           break;
         }
 
@@ -139,10 +148,13 @@ function App() {
           break;
 
         case "answer":
+          console.log("answer", data);
           handleAnswer(data.answer);
+
           break;
       }
     };
+    return () => ws.close();
   }, []);
 
   const handleSend = () => {
@@ -151,7 +163,7 @@ function App() {
       socketRef.current.send(
         JSON.stringify({
           type: "create",
-          roomId: roomId,
+          roomId: roomIdRef.current,
           localPeerId: localPeerId,
         }),
       );
@@ -164,12 +176,18 @@ function App() {
       socketRef.current.send(
         JSON.stringify({
           type: "join",
-          roomId: roomId,
+          roomId: roomIdRef.current,
           localPeerId: localPeerId,
         }),
       );
     }
   };
+
+  useEffect(() => {
+    // if (roomIdRef.current) {
+    roomIdRef.current = roomId;
+    // }
+  }, [roomId]);
 
   return (
     <>

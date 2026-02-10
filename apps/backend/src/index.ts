@@ -13,7 +13,6 @@ app.get(
     return {
       onMessage(event, ws) {
         const data = JSON.parse(event.data.toString());
-
         // validate roomId || peerId
 
         if (data.type === "create" || data.type === "join") {
@@ -40,7 +39,8 @@ app.get(
           ws.send(
             JSON.stringify({
               type: "room-joined",
-              // remotePeerId,
+              // type: "user-joined",
+              remotePeerId,
               msg: "Successfully joined room",
             }),
           );
@@ -124,6 +124,18 @@ app.get(
       },
       onOpen() {
         console.log("Socket opened");
+      },
+      onClose(_, ws) {
+        const peerWs = ws;
+
+        const { roomId, peerId } = peerWs;
+        if (!roomId || !peerId) return;
+
+        const room = rooms.get(roomId);
+        if (!room) return;
+
+        // remove peer
+        room.delete(peerId);
       },
     };
   }),
