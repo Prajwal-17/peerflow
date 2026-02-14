@@ -1,3 +1,4 @@
+import { SOCKET_EVENT } from "@repo/types";
 import { Hono } from "hono";
 import { upgradeWebSocket, websocket } from "hono/bun";
 import type { WSContext } from "hono/ws";
@@ -15,7 +16,10 @@ app.get(
         const data = JSON.parse(event.data.toString());
         // validate roomId || peerId
 
-        if (data.type === "create" || data.type === "join") {
+        if (
+          data.type === SOCKET_EVENT.CREATE_ROOM ||
+          data.type === SOCKET_EVENT.JOIN_ROOM
+        ) {
           const roomExists = rooms.has(data.roomId);
           if (!roomExists) {
             rooms.set(data.roomId, new Map());
@@ -38,8 +42,7 @@ app.get(
 
           ws.send(
             JSON.stringify({
-              type: "room-joined",
-              // type: "user-joined",
+              type: SOCKET_EVENT.ROOM_JOINED,
               remotePeerId,
               msg: "Successfully joined room",
             }),
@@ -51,7 +54,7 @@ app.get(
 
             remoteWs?.send(
               JSON.stringify({
-                type: "user-joined",
+                type: SOCKET_EVENT.PEER_JOINED,
                 remotePeerId: data.localPeerId,
                 msg: "Successfully joined room",
               }),
@@ -61,7 +64,7 @@ app.get(
           return;
         }
 
-        if (data.type === "offer") {
+        if (data.type === SOCKET_EVENT.OFFER) {
           const room = rooms.get(data.roomId);
 
           const remotePeerId = Array.from(room?.keys() || []).find(
@@ -72,7 +75,7 @@ app.get(
             const remoteWs = room?.get(remotePeerId);
             remoteWs?.send(
               JSON.stringify({
-                type: "offer",
+                type: SOCKET_EVENT.OFFER,
                 roomId: data.roomId,
                 localPeerId: data.localPeerId,
                 offer: data.offer,
@@ -81,7 +84,7 @@ app.get(
           }
         }
 
-        if (data.type === "ice-candidate") {
+        if (data.type === SOCKET_EVENT.ICE_CANDIDATE) {
           const room = rooms.get(data.roomId);
           // room?.set(data.localPeerId, ws);
 
@@ -93,7 +96,7 @@ app.get(
             const remoteWs = room?.get(remotePeerId);
             remoteWs?.send(
               JSON.stringify({
-                type: "ice-candidate",
+                type: SOCKET_EVENT.ICE_CANDIDATE,
                 roomId: data.roomId,
                 localPeerId: data.localPeerId,
                 candidate: data.candidate,
@@ -102,7 +105,7 @@ app.get(
           }
         }
 
-        if (data.type === "answer") {
+        if (data.type === SOCKET_EVENT.ANSWER) {
           const room = rooms.get(data.roomId);
 
           const remotePeerId = Array.from(room?.keys() || []).find(
@@ -113,7 +116,7 @@ app.get(
             const remoteWs = room?.get(remotePeerId);
             remoteWs?.send(
               JSON.stringify({
-                type: "answer",
+                type: SOCKET_EVENT.ANSWER,
                 roomId: data.roomId,
                 localPeerId: data.localPeerId,
                 answer: data.answer,
@@ -121,21 +124,6 @@ app.get(
             );
           }
         }
-      },
-      onOpen() {
-        console.log("Socket opened");
-      },
-      onClose(_, ws) {
-        const peerWs = ws;
-
-        const { roomId, peerId } = peerWs;
-        if (!roomId || !peerId) return;
-
-        const room = rooms.get(roomId);
-        if (!room) return;
-
-        // remove peer
-        room.delete(peerId);
       },
     };
   }),

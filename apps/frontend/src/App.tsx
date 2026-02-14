@@ -1,3 +1,4 @@
+import { SOCKET_EVENT } from "@repo/types";
 import { useEffect, useRef, useState } from "react";
 import ShortUniqueId from "short-unique-id";
 
@@ -10,7 +11,10 @@ const config = {
 };
 
 function App() {
-  const { randomUUID } = new ShortUniqueId({ length: 5 });
+  const { randomUUID } = new ShortUniqueId({
+    dictionary: "alpha_upper",
+    length: 5,
+  });
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
@@ -24,8 +28,6 @@ function App() {
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const handleIceCandidate = async (candidate: RTCIceCandidateInit) => {
     try {
       await pcRef.current?.addIceCandidate(new RTCIceCandidate(candidate));
@@ -42,7 +44,7 @@ function App() {
       if (event.candidate) {
         socketRef.current?.send(
           JSON.stringify({
-            type: "ice-candidate",
+            type: SOCKET_EVENT.ICE_CANDIDATE,
             roomId: roomIdRef.current,
             localPeerId: localPeerId,
             candidate: event.candidate,
@@ -67,7 +69,6 @@ function App() {
         } else {
           const tempData = new Blob([data], { type: "application/pdf" });
           const url = URL.createObjectURL(tempData);
-          console.log("url", url);
           const a = document.createElement("a");
           a.href = url;
           a.download = "";
@@ -95,7 +96,7 @@ function App() {
 
       socketRef.current?.send(
         JSON.stringify({
-          type: "offer",
+          type: SOCKET_EVENT.OFFER,
           roomId: roomIdRef.current,
           localPeerId,
           offer,
@@ -107,7 +108,6 @@ function App() {
   };
 
   const handleOffer = async (offer: RTCSessionDescriptionInit) => {
-    console.log("pcref", pcRef, socketRef);
     try {
       await pcRef.current?.setRemoteDescription(offer);
       const answer = await pcRef.current?.createAnswer();
@@ -115,7 +115,7 @@ function App() {
 
       socketRef.current?.send(
         JSON.stringify({
-          type: "answer",
+          type: SOCKET_EVENT.ANSWER,
           roomId: roomIdRef.current,
           localPeerId,
           answer: answer,
@@ -127,7 +127,6 @@ function App() {
   };
 
   const handleAnswer = async (answer: RTCSessionDescriptionInit) => {
-    console.log("answer", answer);
     try {
       await pcRef.current?.setRemoteDescription(answer);
     } catch (error) {
@@ -145,7 +144,7 @@ function App() {
       const data = JSON.parse(event.data);
 
       switch (data.type) {
-        case "user-joined": {
+        case SOCKET_EVENT.PEER_JOINED: {
           setRemotePeerId(data.remotePeerId);
 
           const pc = createRTCPeerConnection();
@@ -154,28 +153,32 @@ function App() {
           break;
         }
 
-        case "room-joined": {
+        case SOCKET_EVENT.ROOM_JOINED: {
           setRemotePeerId(data.remotePeerId);
           const pc = createRTCPeerConnection();
           listenOnDataChannel(pc);
           break;
         }
 
-        case "ice-candidate":
+        case SOCKET_EVENT.ICE_CANDIDATE:
           handleIceCandidate(data.candidate);
           break;
 
-        case "offer":
+        case SOCKET_EVENT.OFFER:
           handleOffer(data.offer);
           break;
 
-        case "answer":
-          console.log("answer", data);
+        case SOCKET_EVENT.ANSWER:
           handleAnswer(data.answer);
 
           break;
       }
     };
+    ws.onclose = () => {
+      socketRef.current = null;
+      setIsConnected(false);
+    };
+
     return () => ws.close();
   }, []);
 
@@ -184,7 +187,7 @@ function App() {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
       socketRef.current.send(
         JSON.stringify({
-          type: "create",
+          type: SOCKET_EVENT.CREATE_ROOM,
           roomId: roomIdRef.current,
           localPeerId: localPeerId,
         }),
@@ -197,7 +200,7 @@ function App() {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
       socketRef.current.send(
         JSON.stringify({
-          type: "join",
+          type: SOCKET_EVENT.JOIN_ROOM,
           roomId: roomIdRef.current,
           localPeerId: localPeerId,
         }),
@@ -210,9 +213,7 @@ function App() {
   }, [roomId]);
 
   const handleSendFile = async () => {
-    console.log("here in send file ", selectedFiles);
     for (const file of selectedFiles) {
-      console.log("here in send file ", selectedFiles);
       const metadata = JSON.stringify({
         type: "file-meta",
         name: file.name,
@@ -284,7 +285,6 @@ function App() {
               title="send files"
               onChange={(e) => {
                 if (e.target.files) {
-                  console.log(e.target.files);
                   const filesArray = Array.from(e.target.files);
                   setSelectedFiles((prev) => [...prev, ...filesArray]);
                 }
