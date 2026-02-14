@@ -1,186 +1,21 @@
 import { SOCKET_EVENT } from "@repo/types";
-import { useEffect, useRef, useState } from "react";
-import ShortUniqueId from "short-unique-id";
-
-const config = {
-  iceServers: [
-    {
-      urls: "stun:stun.l.google.com:19302",
-    },
-  ],
-};
+import { useEffect } from "react";
+import useSignalling from "./hooks/useSignalling";
+import { roomIdRef, socketRef } from "./lib/ref";
+import { handleSendFile } from "./lib/transfer";
+import { usePeerStore } from "./store/peerStore";
 
 function App() {
-  const { randomUUID } = new ShortUniqueId({
-    dictionary: "alpha_upper",
-    length: 5,
-  });
+  const roomId = usePeerStore((state) => state.roomId);
+  const setRoomId = usePeerStore((state) => state.setRoomId);
+  const localPeerId = usePeerStore((state) => state.localPeerId);
+  const remotePeerId = usePeerStore((state) => state.remotePeerId);
+  const type = usePeerStore((state) => state.type);
+  const setType = usePeerStore((state) => state.setType);
+  const selectedFiles = usePeerStore((state) => state.selectedFiles);
+  const setSelectedFiles = usePeerStore((state) => state.setSelectedFiles);
 
-  const pcRef = useRef<RTCPeerConnection | null>(null);
-  const socketRef = useRef<WebSocket | null>(null);
-  const roomIdRef = useRef<string | null>(null);
-  const dcRef = useRef<RTCDataChannel | null>(null);
-
-  const [roomId, setRoomId] = useState(randomUUID());
-  const [localPeerId, setLocalPeerId] = useState(randomUUID(16));
-  const [remotePeerId, setRemotePeerId] = useState("");
-  const [type, setType] = useState<"send" | "receive">();
-  const [isConnected, setIsConnected] = useState<boolean>(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-
-  const handleIceCandidate = async (candidate: RTCIceCandidateInit) => {
-    try {
-      await pcRef.current?.addIceCandidate(new RTCIceCandidate(candidate));
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  const createRTCPeerConnection = () => {
-    const pc = new RTCPeerConnection(config);
-    pcRef.current = pc;
-
-    pc.onicecandidate = async (event) => {
-      if (event.candidate) {
-        socketRef.current?.send(
-          JSON.stringify({
-            type: SOCKET_EVENT.ICE_CANDIDATE,
-            roomId: roomIdRef.current,
-            localPeerId: localPeerId,
-            candidate: event.candidate,
-          }),
-        );
-      }
-    };
-    return pc;
-  };
-
-  const listenOnDataChannel = (pc: RTCPeerConnection) => {
-    pc.ondatachannel = (event) => {
-      const channel = event.channel;
-      let pendingFileMeta: { name: string; fileType: string } | null = null;
-      channel.onmessage = (msgEvent) => {
-        const { data } = msgEvent;
-        if (typeof data == "string") {
-          const parsed = JSON.parse(data);
-          if (parsed.type === "file-meta") {
-            pendingFileMeta = parsed;
-          }
-        } else {
-          const tempData = new Blob([data], { type: "application/pdf" });
-          const url = URL.createObjectURL(tempData);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = "";
-          a.click();
-          URL.revokeObjectURL(url);
-        }
-      };
-    };
-  };
-
-  const createDataChannel = (pc: RTCPeerConnection) => {
-    const dc = pc.createDataChannel("file-transfer", {
-      ordered: true,
-    });
-    dc.onopen = () => {
-      console.log("data channel opened");
-    };
-    dcRef.current = dc;
-  };
-
-  const createAndSendOffer = async (pc: RTCPeerConnection) => {
-    try {
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      socketRef.current?.send(
-        JSON.stringify({
-          type: SOCKET_EVENT.OFFER,
-          roomId: roomIdRef.current,
-          localPeerId,
-          offer,
-        }),
-      );
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  const handleOffer = async (offer: RTCSessionDescriptionInit) => {
-    try {
-      await pcRef.current?.setRemoteDescription(offer);
-      const answer = await pcRef.current?.createAnswer();
-      await pcRef.current?.setLocalDescription(answer);
-
-      socketRef.current?.send(
-        JSON.stringify({
-          type: SOCKET_EVENT.ANSWER,
-          roomId: roomIdRef.current,
-          localPeerId,
-          answer: answer,
-        }),
-      );
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  const handleAnswer = async (answer: RTCSessionDescriptionInit) => {
-    try {
-      await pcRef.current?.setRemoteDescription(answer);
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  useEffect(() => {
-    const ws = new WebSocket("ws://localhost:3000/ws");
-    ws.onopen = () => {
-      socketRef.current = ws;
-      setIsConnected(true);
-    };
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-
-      switch (data.type) {
-        case SOCKET_EVENT.PEER_JOINED: {
-          setRemotePeerId(data.remotePeerId);
-
-          const pc = createRTCPeerConnection();
-          createDataChannel(pc);
-          createAndSendOffer(pc);
-          break;
-        }
-
-        case SOCKET_EVENT.ROOM_JOINED: {
-          setRemotePeerId(data.remotePeerId);
-          const pc = createRTCPeerConnection();
-          listenOnDataChannel(pc);
-          break;
-        }
-
-        case SOCKET_EVENT.ICE_CANDIDATE:
-          handleIceCandidate(data.candidate);
-          break;
-
-        case SOCKET_EVENT.OFFER:
-          handleOffer(data.offer);
-          break;
-
-        case SOCKET_EVENT.ANSWER:
-          handleAnswer(data.answer);
-
-          break;
-      }
-    };
-    ws.onclose = () => {
-      socketRef.current = null;
-      setIsConnected(false);
-    };
-
-    return () => ws.close();
-  }, []);
+  const { isConnected } = useSignalling();
 
   const handleSend = () => {
     setType("send");
@@ -212,23 +47,9 @@ function App() {
     roomIdRef.current = roomId;
   }, [roomId]);
 
-  const handleSendFile = async () => {
-    for (const file of selectedFiles) {
-      const metadata = JSON.stringify({
-        type: "file-meta",
-        name: file.name,
-        fileType: file.type,
-        size: file.size,
-      });
-      dcRef.current?.send(metadata);
-      const buffer = await file.arrayBuffer();
-      dcRef.current?.send(buffer);
-    }
-  };
-
   useEffect(() => {
     if (selectedFiles.length > 0) {
-      handleSendFile();
+      handleSendFile(selectedFiles);
     }
   }, [selectedFiles]);
 
@@ -261,7 +82,6 @@ function App() {
           >
             Receive
           </button>
-          <button onClick={handleSendFile}>Send File</button>
           {type === "receive" && (
             <div className="space-x-2">
               <label htmlFor="roomid">Room Id</label>
@@ -286,7 +106,7 @@ function App() {
               onChange={(e) => {
                 if (e.target.files) {
                   const filesArray = Array.from(e.target.files);
-                  setSelectedFiles((prev) => [...prev, ...filesArray]);
+                  setSelectedFiles(filesArray);
                 }
               }}
               className="border-2"
