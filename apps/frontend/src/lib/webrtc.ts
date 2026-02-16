@@ -39,7 +39,14 @@ export const createRTCPeerConnection = (localPeerId: string) => {
 export const listenOnDataChannel = (pc: RTCPeerConnection) => {
   pc.ondatachannel = (event) => {
     const channel = event.channel;
-    let pendingFileMeta: { name: string; fileType: string } | null = null;
+
+    let pendingFileMeta: {
+      type: string;
+      name: string;
+      fileType: string;
+      size: number;
+    } | null = null;
+
     channel.onmessage = (msgEvent) => {
       const { data } = msgEvent;
       if (typeof data == "string") {
@@ -48,13 +55,20 @@ export const listenOnDataChannel = (pc: RTCPeerConnection) => {
           pendingFileMeta = parsed;
         }
       } else {
-        const tempData = new Blob([data], { type: "application/pdf" });
-        const url = URL.createObjectURL(tempData);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "";
-        a.click();
-        URL.revokeObjectURL(url);
+        if (pendingFileMeta) {
+          const tempData = new Blob([data], {
+            type: pendingFileMeta.fileType,
+          });
+          const url = URL.createObjectURL(tempData);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = pendingFileMeta.name;
+          document.body.appendChild(a);
+          a.click();
+          URL.revokeObjectURL(url);
+        } else {
+          console.log("File meta does not exist");
+        }
       }
     };
   };
