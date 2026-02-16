@@ -18,7 +18,7 @@ const useSignalling = () => {
   const setRemotePeerId = usePeerStore((state) => state.setRemotePeerId);
 
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:3000/ws");
+    const ws = new WebSocket(import.meta.env.VITE_SIGNALLING_SERVER);
     ws.onopen = () => {
       socketRef.current = ws;
       setIsConnected(true);
