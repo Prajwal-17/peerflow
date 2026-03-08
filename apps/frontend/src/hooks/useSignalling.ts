@@ -3,12 +3,15 @@ import { useEffect, useState } from "react";
 import { socketRef } from "../lib/ref";
 import {
   createAndSendOffer,
+  createControlChannel,
   createDataChannel,
   createRTCPeerConnection,
   handleAnswer,
   handleIceCandidate,
   handleOffer,
+  listenOnCtrlChannel,
   listenOnDataChannel,
+  listenOnTransferChannel,
 } from "../lib/webrtc";
 import { usePeerStore } from "../store/peerStore";
 
@@ -31,6 +34,7 @@ const useSignalling = () => {
           setRemotePeerId(data.remotePeerId);
 
           const pc = createRTCPeerConnection(localPeerId);
+          createControlChannel(pc);
           createDataChannel(pc);
           createAndSendOffer(pc, localPeerId);
           break;
@@ -39,7 +43,11 @@ const useSignalling = () => {
         case SOCKET_EVENT.ROOM_JOINED: {
           setRemotePeerId(data.remotePeerId);
           const pc = createRTCPeerConnection(localPeerId);
-          listenOnDataChannel(pc);
+          // use callback to handle race conditions
+          listenOnDataChannel(pc, () => {
+            listenOnCtrlChannel();
+            listenOnTransferChannel();
+          });
           break;
         }
 

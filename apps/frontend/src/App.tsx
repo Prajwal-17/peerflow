@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import useSignalling from "./hooks/useSignalling";
 import { roomIdRef, socketRef } from "./lib/ref";
 import { handleSendFile } from "./lib/transfer";
+import { useFileTransferStore } from "./store/fileTransferStore";
 import { usePeerStore } from "./store/peerStore";
 
 function App() {
@@ -14,6 +15,8 @@ function App() {
   const setType = usePeerStore((state) => state.setType);
   const selectedFiles = usePeerStore((state) => state.selectedFiles);
   const setSelectedFiles = usePeerStore((state) => state.setSelectedFiles);
+  const isIncomingFile = useFileTransferStore((state) => state.isIncomingFile);
+  const pendingFile = useFileTransferStore((state) => state.pendingFile);
 
   const { isConnected } = useSignalling();
 
@@ -38,6 +41,23 @@ function App() {
           type: SOCKET_EVENT.JOIN_ROOM,
           roomId: roomIdRef.current,
           localPeerId: localPeerId,
+        }),
+      );
+    }
+  };
+
+  const acceptFiles = async () => {
+    if (pendingFile) {
+      const saveHandler = await window.showSaveFilePicker({
+        suggestedName: pendingFile.name,
+      });
+
+      const writable = await saveHandler.createWritable();
+      useFileTransferStore.getState().setWritableStream(writable);
+      const value = useFileTransferStore.getState().ctrlChannel;
+      value?.send(
+        JSON.stringify({
+          type: "ready",
         }),
       );
     }
@@ -113,6 +133,9 @@ function App() {
               multiple
             />
           </div>
+          {isIncomingFile && (
+            <button onClick={acceptFiles}>Accept Files</button>
+          )}
         </div>
       </div>
     </>
