@@ -10,27 +10,33 @@ type IncomingFile = {
 
 type FileTransferStore = {
   isIncomingFile: boolean;
-  setIsIncomingFile: () => void;
+  setIsIncomingFile: (value: boolean) => void;
   pendingFile: IncomingFile | null;
-  setPendingFile: (file: IncomingFile) => void;
-  writableStream: FileSystemWritableFileStream | null;
-  setWritableStream: (stream: FileSystemWritableFileStream) => void;
-  ctrlChannel: RTCDataChannel | null;
-  setCtrlChannel: (channel: RTCDataChannel) => void;
+  setPendingFile: (file: IncomingFile | null) => void;
+  // writableStream: FileSystemWritableFileStream | null;
+  // setWritableStream: (stream: FileSystemWritableFileStream | null) => void;
+  // ctrlChannel: RTCDataChannel | null;
+  // setCtrlChannel: (channel: RTCDataChannel) => void;
+  resetIncomingFile: () => void;
 };
 
 export const useFileTransferStore = create<FileTransferStore>()(
   devtools(
     (set) => ({
       isIncomingFile: false,
-      setIsIncomingFile: () =>
+      setIsIncomingFile: (value) =>
         set(
-          (state) => ({
-            isIncomingFile: !state.isIncomingFile,
+          () => ({
+            isIncomingFile: value,
           }),
           false,
           "setIsIncomingFile",
         ),
+
+      resetIncomingFile: () =>
+        set({
+          isIncomingFile: false,
+        }),
 
       pendingFile: null,
       setPendingFile: (file) =>
@@ -41,27 +47,8 @@ export const useFileTransferStore = create<FileTransferStore>()(
           false,
           "setPendingFile",
         ),
-
-      writableStream: null,
-      setWritableStream: (stream) =>
-        set(
-          () => ({
-            writableStream: stream,
-          }),
-          false,
-          "setWritableStream",
-        ),
-
-      ctrlChannel: null,
-      setCtrlChannel: (channel) =>
-        set(
-          () => ({
-            ctrlChannel: channel,
-          }),
-          false,
-          "setCtrlChannel",
-        ),
     }),
+
     {
       name: "FileTransferStore",
       enabled: true,

@@ -1,8 +1,7 @@
 import { SOCKET_EVENT } from "@repo/types";
 import { useEffect } from "react";
 import useSignalling from "./hooks/useSignalling";
-import { roomIdRef, socketRef } from "./lib/ref";
-import { handleSendFile } from "./lib/transfer";
+import { peerSession } from "./lib/peerSession";
 import { useFileTransferStore } from "./store/fileTransferStore";
 import { usePeerStore } from "./store/peerStore";
 
@@ -10,7 +9,9 @@ function App() {
   const roomId = usePeerStore((state) => state.roomId);
   const setRoomId = usePeerStore((state) => state.setRoomId);
   const localPeerId = usePeerStore((state) => state.localPeerId);
+  const setLocalPeerId = usePeerStore((state) => state.setLocalPeerId);
   const remotePeerId = usePeerStore((state) => state.remotePeerId);
+
   const type = usePeerStore((state) => state.type);
   const setType = usePeerStore((state) => state.setType);
   const selectedFiles = usePeerStore((state) => state.selectedFiles);
@@ -22,12 +23,12 @@ function App() {
 
   const handleSend = () => {
     setType("send");
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(
+    if (peerSession.socket?.readyState === WebSocket.OPEN) {
+      peerSession.socket?.send(
         JSON.stringify({
           type: SOCKET_EVENT.CREATE_ROOM,
-          roomId: roomIdRef.current,
-          localPeerId: localPeerId,
+          roomId: peerSession.roomId,
+          localPeerId: peerSession.localPeerId,
         }),
       );
     }
@@ -35,12 +36,12 @@ function App() {
 
   const handleJoin = () => {
     setType("receive");
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(
+    if (peerSession.socket?.readyState === WebSocket.OPEN) {
+      peerSession.socket?.send(
         JSON.stringify({
           type: SOCKET_EVENT.JOIN_ROOM,
-          roomId: roomIdRef.current,
-          localPeerId: localPeerId,
+          roomId: peerSession.roomId,
+          localPeerId: peerSession.localPeerId,
         }),
       );
     }
@@ -51,10 +52,14 @@ function App() {
       const saveHandler = await window.showSaveFilePicker({
         suggestedName: pendingFile.name,
       });
+      peerSession.setfileHandler(saveHandler);
 
       const writable = await saveHandler.createWritable();
-      useFileTransferStore.getState().setWritableStream(writable);
-      const value = useFileTransferStore.getState().ctrlChannel;
+      peerSession.setWritableStream(writable);
+      // useFileTransferStore.getState().setWritableStream(writable);
+      useFileTransferStore.getState().setIsIncomingFile(false);
+
+      const value = peerSession.ctrlChannel;
       value?.send(
         JSON.stringify({
           type: "ready",
@@ -64,12 +69,18 @@ function App() {
   };
 
   useEffect(() => {
-    roomIdRef.current = roomId;
+    // sync initial session values to UI state
+    setRoomId(peerSession.roomId);
+    setLocalPeerId(peerSession.localPeerId);
+  }, []);
+
+  useEffect(() => {
+    peerSession.setRoomId(roomId);
   }, [roomId]);
 
   useEffect(() => {
     if (selectedFiles.length > 0) {
-      handleSendFile(selectedFiles);
+      peerSession.sendFiles(selectedFiles);
     }
   }, [selectedFiles]);
 
