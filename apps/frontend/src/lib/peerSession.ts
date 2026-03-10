@@ -19,7 +19,8 @@ export class PeerSession {
   ctrlChannel: RTCDataChannel | null = null;
   transferChannel: RTCDataChannel | null = null;
 
-  fileHandler: FileSystemHandle | null = null;
+  dirHandler: FileSystemDirectoryHandle | null = null;
+  fileHandler: FileSystemFileHandle | null = null;
   writableStream: FileSystemWritableFileStream | null = null;
   // file handle
   // writable stream
@@ -53,8 +54,12 @@ export class PeerSession {
     this.socket = ws;
   }
 
-  setfileHandler(handler: FileSystemHandle | null) {
+  setfileHandler(handler: FileSystemFileHandle | null) {
     this.fileHandler = handler;
+  }
+
+  setDirHandler(handler: FileSystemDirectoryHandle | null) {
+    this.dirHandler = handler;
   }
 
   setWritableStream(stream: FileSystemWritableFileStream | null) {
@@ -183,6 +188,7 @@ export class PeerSession {
     channel.onmessage = async (event) => {
       const parsed = JSON.parse(event.data);
       if (parsed.type === "file-meta") {
+        // console.log(parsed);
         useFileTransferStore.getState().setIsIncomingFile(true);
         useFileTransferStore.getState().setPendingFile(parsed);
       }
@@ -190,9 +196,12 @@ export class PeerSession {
       if (parsed.type === "eof") {
         if (this.writableStream) {
           await this.writableStream.close();
+          this.setWritableStream(null);
+          this.setfileHandler(null);
+          // this.fileHandler = null;
           useFileTransferStore.getState().setIsIncomingFile(false);
           // useFileTransferStore.getState().setWritableStream(null);
-          useFileTransferStore.getState().setPendingFile(null);
+          // useFileTransferStore.getState().setPendingFile(null);
         }
       }
     };
@@ -224,6 +233,7 @@ export class PeerSession {
         fileType: file.type,
         size: file.size,
       });
+      console.log("here", metadata);
       this.ctrlChannel?.send(metadata);
 
       if (!this.ctrlChannel) {

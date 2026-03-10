@@ -49,12 +49,17 @@ function App() {
 
   const acceptFiles = async () => {
     if (pendingFile) {
-      const saveHandler = await window.showSaveFilePicker({
-        suggestedName: pendingFile.name,
+      const dirHandler = await window.showDirectoryPicker({
+        mode: "readwrite",
+        startIn: "downloads",
       });
-      peerSession.setfileHandler(saveHandler);
+      const fileHandler = await dirHandler.getFileHandle(pendingFile.name, {
+        create: true,
+      });
 
-      const writable = await saveHandler.createWritable();
+      peerSession.setfileHandler(fileHandler);
+
+      const writable = await fileHandler.createWritable();
       peerSession.setWritableStream(writable);
       // useFileTransferStore.getState().setWritableStream(writable);
       useFileTransferStore.getState().setIsIncomingFile(false);
@@ -67,6 +72,67 @@ function App() {
       );
     }
   };
+
+  useEffect(() => {
+    console.log("here in hook");
+    async function main() {
+      if (pendingFile) {
+        if (!peerSession.fileHandler) {
+          console.log("handler", peerSession.fileHandler);
+          // const saveHandler = await window.showSaveFilePicker({
+          //   suggestedName: pendingFile.name,
+          // });
+          const dirHandler = await window.showDirectoryPicker({
+            mode: "readwrite",
+            startIn: "downloads",
+          });
+          peerSession.setDirHandler(dirHandler);
+          const fileHandler = await dirHandler.getFileHandle(pendingFile.name, {
+            create: true,
+          });
+
+          peerSession.setfileHandler(fileHandler);
+
+          const writable = await fileHandler.createWritable();
+          peerSession.setWritableStream(writable);
+          // useFileTransferStore.getState().setWritableStream(writable);
+          useFileTransferStore.getState().setIsIncomingFile(false);
+
+          const value = peerSession.ctrlChannel;
+          value?.send(
+            JSON.stringify({
+              type: "ready",
+            }),
+          );
+        } else {
+          const dirHandler = peerSession.dirHandler;
+          if (!dirHandler) {
+            console.error("No dir handler");
+            return;
+          }
+
+          const fileHandler = await dirHandler.getFileHandle(pendingFile.name, {
+            create: true,
+          });
+
+          peerSession.setfileHandler(fileHandler);
+
+          const writable = await fileHandler.createWritable();
+          peerSession.setWritableStream(writable);
+          // useFileTransferStore.getState().setWritableStream(writable);
+          useFileTransferStore.getState().setIsIncomingFile(false);
+
+          const value = peerSession.ctrlChannel;
+          value?.send(
+            JSON.stringify({
+              type: "ready",
+            }),
+          );
+        }
+      }
+    }
+    main();
+  }, [pendingFile]);
 
   useEffect(() => {
     // sync initial session values to UI state
@@ -145,7 +211,13 @@ function App() {
             />
           </div>
           {isIncomingFile && (
-            <button onClick={acceptFiles}>Accept Files</button>
+            <>
+              <div className="space-x-5">
+                <span>{pendingFile?.name}</span>
+                <span>{pendingFile?.fileType}</span>
+              </div>
+              <button onClick={acceptFiles}>Accept Files</button>
+            </>
           )}
         </div>
       </div>
