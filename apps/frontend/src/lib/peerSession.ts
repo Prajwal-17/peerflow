@@ -188,7 +188,6 @@ export class PeerSession {
     channel.onmessage = async (event) => {
       const parsed = JSON.parse(event.data);
       if (parsed.type === "file-meta") {
-        // console.log(parsed);
         useFileTransferStore.getState().setIsIncomingFile(true);
         useFileTransferStore.getState().setPendingFile(parsed);
       }
@@ -198,10 +197,7 @@ export class PeerSession {
           await this.writableStream.close();
           this.setWritableStream(null);
           this.setfileHandler(null);
-          // this.fileHandler = null;
           useFileTransferStore.getState().setIsIncomingFile(false);
-          // useFileTransferStore.getState().setWritableStream(null);
-          // useFileTransferStore.getState().setPendingFile(null);
         }
       }
     };
