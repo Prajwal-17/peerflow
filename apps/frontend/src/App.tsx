@@ -54,11 +54,22 @@ function App() {
     });
     peerSession.setDirHandler(dirHandler);
 
-    peerSession.ctrlChannel?.send(
-      JSON.stringify({
-        type: "ready",
-      }),
-    );
+    if (pendingFile) {
+      const fileHandler = await dirHandler.getFileHandle(pendingFile.name, {
+        create: true,
+      });
+      peerSession.setfileHandler(fileHandler);
+
+      const writable = await fileHandler.createWritable();
+      peerSession.setWritableStream(writable);
+      useFileTransferStore.getState().setIsIncomingFile(false);
+
+      peerSession.ctrlChannel?.send(
+        JSON.stringify({
+          type: "ready",
+        }),
+      );
+    }
   };
 
   useEffect(() => {
@@ -67,7 +78,6 @@ function App() {
         if (!peerSession.fileHandler) {
           const dirHandler = peerSession.dirHandler;
           if (!dirHandler) {
-            console.log("no dir handler");
             return;
           }
           const fileHandler = await dirHandler.getFileHandle(pendingFile.name, {
@@ -86,8 +96,6 @@ function App() {
               type: "ready",
             }),
           );
-        } else {
-          console.log("Here in no file handler");
         }
       }
     }

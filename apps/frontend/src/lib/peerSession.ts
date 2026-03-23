@@ -188,8 +188,10 @@ export class PeerSession {
     channel.onmessage = async (event) => {
       const parsed = JSON.parse(event.data);
       if (parsed.type === "file-meta") {
-        useFileTransferStore.getState().setIsIncomingFile(true);
-        useFileTransferStore.getState().setPendingFile(parsed);
+        useFileTransferStore.setState({
+          isIncomingFile: true,
+          pendingFile: parsed,
+        });
       }
 
       if (parsed.type === "eof") {
@@ -229,7 +231,6 @@ export class PeerSession {
         fileType: file.type,
         size: file.size,
       });
-      console.log("here", metadata);
       this.ctrlChannel?.send(metadata);
 
       if (!this.ctrlChannel) {
@@ -273,6 +274,7 @@ export class PeerSession {
               type: "eof",
             }),
           );
+          useFileTransferStore.getState().setPendingFile(null);
         } else {
           setTimeout(checkBufferAndSendEOF, 50);
         }
