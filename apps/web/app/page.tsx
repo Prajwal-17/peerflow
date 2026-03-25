@@ -1,11 +1,13 @@
+"use client";
+
+import useSignalling from "@/hooks/useSignalling";
+import { peerSession } from "@/lib/peerSession";
+import { useFileTransferStore } from "@/store/fileTransferStore";
+import { usePeerStore } from "@/store/peerStore";
 import { SOCKET_EVENT } from "@repo/types";
 import { useEffect } from "react";
-import useSignalling from "./hooks/useSignalling";
-import { peerSession } from "./lib/peerSession";
-import { useFileTransferStore } from "./store/fileTransferStore";
-import { usePeerStore } from "./store/peerStore";
 
-function App() {
+export default function Home() {
   const roomId = usePeerStore((state) => state.roomId);
   const setRoomId = usePeerStore((state) => state.setRoomId);
   const localPeerId = usePeerStore((state) => state.localPeerId);
@@ -120,7 +122,7 @@ function App() {
 
   return (
     <>
-      <div className="min-h-screen w-full flex items-center justify-center">
+      <div className="flex min-h-screen w-full items-center justify-center">
         <div className="space-y-4">
           <div className="text-xl">File transfer</div>
           <div> Room Id - {roomId}</div>
@@ -136,13 +138,13 @@ function App() {
             )}
           </div>
           <button
-            className="bg-black text-white  p-2 rounded-lg"
+            className="rounded-lg bg-black p-2 text-white"
             onClick={handleSend}
           >
             Send
           </button>
           <button
-            className="bg-black text-white  p-2 rounded-lg"
+            className="rounded-lg bg-black p-2 text-white"
             onClick={() => setType("receive")}
           >
             Receive
@@ -158,7 +160,7 @@ function App() {
               />
               <button
                 onClick={() => handleJoin()}
-                className="bg-black text-white  p-2 rounded-lg"
+                className="rounded-lg bg-black p-2 text-white"
               >
                 Join Room
               </button>
@@ -192,5 +194,3 @@ function App() {
     </>
   );
 }
-
-export default App;

@@ -7,7 +7,9 @@ const useSignalling = () => {
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
   useEffect(() => {
-    const ws = new WebSocket(import.meta.env.VITE_SIGNALLING_SERVER);
+    const ws = new WebSocket(
+      process.env.NEXT_PUBLIC_SIGNALLING_SERVER as string,
+    );
     ws.onopen = () => {
       peerSession.setSocket(ws);
       setIsConnected(true);
