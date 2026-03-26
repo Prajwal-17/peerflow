@@ -1,194 +1,201 @@
 "use client";
 
-import useSignalling from "@/hooks/useSignalling";
-import { peerSession } from "@/lib/peerSession";
-import { useFileTransferStore } from "@/store/fileTransferStore";
-import { usePeerStore } from "@/store/peerStore";
-import { SOCKET_EVENT } from "@repo/types";
-import { useEffect } from "react";
+import { featurePills, steps } from "@/constants";
+import { Cast, Download, Send } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
-export default function Home() {
-  const roomId = usePeerStore((state) => state.roomId);
-  const setRoomId = usePeerStore((state) => state.setRoomId);
-  const localPeerId = usePeerStore((state) => state.localPeerId);
-  const setLocalPeerId = usePeerStore((state) => state.setLocalPeerId);
-  const remotePeerId = usePeerStore((state) => state.remotePeerId);
-
-  const type = usePeerStore((state) => state.type);
-  const setType = usePeerStore((state) => state.setType);
-  const selectedFiles = usePeerStore((state) => state.selectedFiles);
-  const setSelectedFiles = usePeerStore((state) => state.setSelectedFiles);
-  const isIncomingFile = useFileTransferStore((state) => state.isIncomingFile);
-  const pendingFile = useFileTransferStore((state) => state.pendingFile);
-
-  const { isConnected } = useSignalling();
-
-  const handleSend = () => {
-    setType("send");
-    if (peerSession.socket?.readyState === WebSocket.OPEN) {
-      peerSession.socket?.send(
-        JSON.stringify({
-          type: SOCKET_EVENT.CREATE_ROOM,
-          roomId: peerSession.roomId,
-          localPeerId: peerSession.localPeerId,
-        }),
-      );
-    }
-  };
-
-  const handleJoin = () => {
-    setType("receive");
-    if (peerSession.socket?.readyState === WebSocket.OPEN) {
-      peerSession.socket?.send(
-        JSON.stringify({
-          type: SOCKET_EVENT.JOIN_ROOM,
-          roomId: peerSession.roomId,
-          localPeerId: peerSession.localPeerId,
-        }),
-      );
-    }
-  };
-
-  const acceptFiles = async () => {
-    const dirHandler = await window.showDirectoryPicker({
-      mode: "readwrite",
-      startIn: "downloads",
-    });
-    peerSession.setDirHandler(dirHandler);
-
-    if (pendingFile) {
-      const fileHandler = await dirHandler.getFileHandle(pendingFile.name, {
-        create: true,
-      });
-      peerSession.setfileHandler(fileHandler);
-
-      const writable = await fileHandler.createWritable();
-      peerSession.setWritableStream(writable);
-      useFileTransferStore.getState().setIsIncomingFile(false);
-
-      peerSession.ctrlChannel?.send(
-        JSON.stringify({
-          type: "ready",
-        }),
-      );
-    }
-  };
+export default function HomePage() {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    async function main() {
-      if (pendingFile) {
-        if (!peerSession.fileHandler) {
-          const dirHandler = peerSession.dirHandler;
-          if (!dirHandler) {
-            return;
-          }
-          const fileHandler = await dirHandler.getFileHandle(pendingFile.name, {
-            create: true,
-          });
-
-          peerSession.setfileHandler(fileHandler);
-
-          const writable = await fileHandler.createWritable();
-          peerSession.setWritableStream(writable);
-          useFileTransferStore.getState().setIsIncomingFile(false);
-
-          const value = peerSession.ctrlChannel;
-          value?.send(
-            JSON.stringify({
-              type: "ready",
-            }),
-          );
-        }
+    setMounted(true);
+    const handleClick = (e: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setIsDropdownOpen(false);
       }
-    }
-    main();
-  }, [isIncomingFile, pendingFile]);
-
-  useEffect(() => {
-    // sync initial session values to UI state
-    setRoomId(peerSession.roomId);
-    setLocalPeerId(peerSession.localPeerId);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
   }, []);
-
-  useEffect(() => {
-    peerSession.setRoomId(roomId);
-  }, [roomId]);
-
-  useEffect(() => {
-    if (selectedFiles.length > 0) {
-      peerSession.sendFiles(selectedFiles);
-    }
-  }, [selectedFiles]);
 
   return (
     <>
-      <div className="flex min-h-screen w-full items-center justify-center">
-        <div className="space-y-4">
-          <div className="text-xl">File transfer</div>
-          <div> Room Id - {roomId}</div>
-          <div> Local Peer ID 1 - {localPeerId}</div>
+      <style>{`
+        @keyframes pulse-custom {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.6; transform: scale(0.85); }
+        }
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-up {
+          opacity: 0;
+          animation: fadeUp 0.6s ease forwards;
+        }
+        .animate-pulse-custom {
+          animation: pulse-custom 2s infinite;
+        }
+      `}</style>
 
-          <div> Remote Peer ID 2 - {remotePeerId}</div>
+      <div className="bg-background text-foreground relative flex min-h-screen flex-col overflow-x-hidden font-sans">
+        {/* grids and glows */}
+        <div
+          className="pointer-events-none fixed inset-0 z-0"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)",
+            backgroundSize: "60px 60px",
+          }}
+        />
+        <div className="pointer-events-none fixed -top-50 -right-50 z-0 h-175 w-175 rounded-full bg-[radial-gradient(circle,rgba(0,229,160,0.06)_0%,transparent_70%)]" />
+        <div className="pointer-events-none fixed -bottom-25 -left-25 z-0 h-125 w-125 rounded-full bg-[radial-gradient(circle,rgba(0,100,255,0.04)_0%,transparent_70%)]" />
 
-          <div>
-            {isConnected ? (
-              <div className="text-green-300">Connected •</div>
-            ) : (
-              <div className="text-red-500">Disconnected</div>
-            )}
-          </div>
-          <button
-            className="rounded-lg bg-black p-2 text-white"
-            onClick={handleSend}
-          >
-            Send
-          </button>
-          <button
-            className="rounded-lg bg-black p-2 text-white"
-            onClick={() => setType("receive")}
-          >
-            Receive
-          </button>
-          {type === "receive" && (
-            <div className="space-x-2">
-              <label htmlFor="roomid">Room Id</label>
-              <input
-                id="roomid"
-                value={roomId}
-                onChange={(e) => setRoomId(e.target.value)}
-                className="border"
-              />
-              <button
-                onClick={() => handleJoin()}
-                className="rounded-lg bg-black p-2 text-white"
-              >
-                Join Room
+        <div className="z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col">
+          {/* nav */}
+          <nav className="flex items-center justify-between border-b border-white/8 px-6 py-4 sm:px-8 sm:py-5">
+            <div className="flex items-center gap-2.5">
+              <div className="border-accent text-accent flex h-9 w-9 items-center justify-center rounded-lg border-[1.5px] shadow-[0_0_12px_rgba(0,229,160,0.3)]">
+                <Send className="" size={20} />
+              </div>
+              <span className="text-[20px] font-bold tracking-[0.04em] text-white">
+                Peerflow
+              </span>
+            </div>
+
+            <div className="text-muted hover:text-foreground flex cursor-pointer items-center gap-2 font-mono text-xs tracking-[0.06em] uppercase transition-colors duration-200">
+              <Cast size={22} />
+              Nearby devices
+            </div>
+          </nav>
+
+          <main className="flex flex-1 flex-col items-center justify-center px-6 pt-10 pb-8 text-center sm:px-8 sm:pt-14 sm:pb-12">
+            <h1
+              className="animate-fade-up mb-4 text-[clamp(44px,6vw,76px)] leading-none font-extrabold tracking-[-0.03em] text-white"
+              style={{ animationDelay: "0.2s" }}
+            >
+              Share files
+              <br />
+              <span className="text-accent relative">instantly.</span>
+            </h1>
+
+            <p
+              className="animate-fade-up text-muted mb-10 max-w-130 text-[16px] leading-[1.6] font-normal"
+              style={{ animationDelay: "0.3s" }}
+            >
+              Direct device to device transfer over WebRTC & UDP. No middlemen,
+              no cloud, no limits — just fast, private, peer to peer file
+              sharing.
+            </p>
+
+            {/* CTA */}
+            <div
+              className="animate-fade-up flex w-full flex-col items-center gap-4 sm:w-auto sm:flex-row"
+              style={{ animationDelay: "0.4s" }}
+            >
+              <div className="relative w-full sm:w-auto" ref={dropdownRef}>
+                <button
+                  className="bg-accent flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border-none px-7 py-3.5 font-sans text-[15px] font-bold tracking-[0.04em] text-black shadow-[0_0_24px_rgba(0,229,160,0.3)] transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_4px_32px_rgba(0,229,160,0.3)] sm:w-auto sm:justify-start"
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                >
+                  <Send size={18} />
+                  Send a file
+                  <div
+                    className={`ml-0.5 h-1.5 w-1.5 border-r-2 border-b-2 border-black transition-transform duration-200 ${
+                      isDropdownOpen ? "-rotate-135" : "rotate-45"
+                    }`}
+                  />
+                </button>
+
+                {isDropdownOpen && (
+                  <div className="bg-surface absolute top-[calc(100%+10px)] left-0 w-full min-w-40 overflow-hidden rounded-xl border border-white/18 shadow-[0_16px_40px_rgba(0,0,0,0.6)] sm:w-auto">
+                    <button
+                      className="text-foreground flex w-full cursor-pointer items-center gap-2.5 border-none bg-transparent px-4.5 py-4.5 text-left font-sans text-[14px] tracking-[0.02em] transition-colors duration-150 hover:bg-white/5"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-white/5 text-[14px]">
+                        📡
+                      </span>
+                      To nearby device
+                    </button>
+                    <div className="h-px bg-white/8" />
+                    <button
+                      className="text-foreground flex w-full cursor-pointer items-center gap-2.5 border-none bg-transparent px-4.5 py-3 text-left font-sans text-[14px] tracking-[0.02em] transition-colors duration-150 hover:bg-white/5"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-white/5 text-[14px]">
+                        💾
+                      </span>
+                      Save locally
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <button className="text-foreground flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border-[1.5px] border-white/8 bg-transparent px-7 py-3.25 font-sans text-[15px] font-semibold tracking-[0.04em] transition-all duration-200 hover:-translate-y-0.5 hover:border-white/35 hover:bg-white/4 sm:w-auto sm:justify-start">
+                <Download size={16} />
+                Receive
               </button>
             </div>
-          )}
-          <div>
-            <input
-              type="file"
-              title="send files"
-              onChange={(e) => {
-                if (e.target.files) {
-                  const filesArray = Array.from(e.target.files);
-                  setSelectedFiles(filesArray);
-                }
-              }}
-              className="border-2"
-              multiple
-            />
-          </div>
-          {isIncomingFile && (
-            <>
-              <div className="space-x-5">
-                <span>{pendingFile?.name}</span>
-                <span>{pendingFile?.fileType}</span>
+
+            <div
+              className="animate-fade-up mt-10 flex flex-wrap justify-center gap-2.5"
+              style={{ animationDelay: "0.5s" }}
+            >
+              {featurePills.map((f) => (
+                <div
+                  key={f}
+                  className="text-muted hover:text-foreground flex items-center gap-1.75 rounded-full border border-white/8 bg-white/3 px-3.5 py-1.5 font-mono text-[11px] tracking-[0.08em] uppercase transition-colors duration-200 hover:border-white/18"
+                >
+                  <div className="bg-accent h-1.25 w-1.25 shrink-0 rounded-full" />
+                  {f}
+                </div>
+              ))}
+            </div>
+          </main>
+
+          {/* steps */}
+          <section className="flex flex-wrap justify-center gap-0 px-6 pb-12 sm:flex-nowrap sm:px-8 sm:pb-16">
+            {steps.map((s, idx) => (
+              <div
+                key={idx}
+                className={`animate-fade-up relative flex w-1/2 flex-col items-center p-4 text-center sm:w-auto sm:px-8 sm:py-0 ${
+                  idx !== 2
+                    ? "sm:after:absolute sm:after:top-5.5 sm:after:right-0 sm:after:h-10 sm:after:w-px sm:after:bg-white/8"
+                    : ""
+                }`}
+                style={{ animationDelay: s.delay }}
+              >
+                <div className="text-accent mb-2.5 font-mono text-[11px] tracking-[0.12em] uppercase">
+                  {s.id}
+                </div>
+                <div className="mb-1.5 text-[15px] font-bold tracking-[0.01em] text-white">
+                  {s.title}
+                </div>
+                <div className="text-muted max-w-35 font-mono text-[12px] leading-[1.6]">
+                  {s.desc}
+                </div>
               </div>
-              <button onClick={acceptFiles}>Accept Files</button>
-            </>
-          )}
+            ))}
+          </section>
+
+          {/* footer */}
+          <footer className="flex flex-col items-center justify-between gap-3 border-t border-white/8 p-5 text-center sm:flex-row sm:px-8 sm:py-5 sm:text-left">
+            <a
+              href="#"
+              className="text-muted hover:text-foreground font-mono text-[12px] tracking-[0.06em] uppercase no-underline transition-colors duration-200"
+            >
+              View local saved
+            </a>
+            <div className="font-mono text-[11px] tracking-[0.06em] text-white/20">
+              Built by <span className="text-accent">Prajwal-17</span>
+            </div>
+          </footer>
         </div>
       </div>
     </>
