@@ -1,7 +1,7 @@
 "use client";
 
 import { featurePills, steps } from "@/constants";
-import { Cast, Download, Send } from "lucide-react";
+import { Archive, Cast, Download, MonitorUp, Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 export default function HomePage() {
@@ -68,9 +68,17 @@ export default function HomePage() {
               </span>
             </div>
 
-            <div className="text-muted hover:text-foreground flex cursor-pointer items-center gap-2 font-mono text-xs tracking-[0.06em] uppercase transition-colors duration-200">
-              <Cast size={22} />
-              Nearby devices
+            <div className="flex items-center gap-5 sm:gap-8">
+              <div className="text-muted hover:text-foreground flex cursor-pointer items-center gap-2 font-mono text-xs tracking-[0.06em] uppercase transition-colors duration-200">
+                <Archive size={18} />
+                <span className="hidden sm:inline">Saved Items</span>
+                <span className="sm:hidden">Saved</span>
+              </div>
+              <div className="text-muted hover:text-foreground flex cursor-pointer items-center gap-2 font-mono text-xs tracking-[0.06em] uppercase transition-colors duration-200">
+                <Cast size={22} />
+                <span className="hidden sm:inline">Nearby devices</span>
+                <span className="sm:hidden">Nearby</span>
+              </div>
             </div>
           </nav>
 
@@ -98,7 +106,7 @@ export default function HomePage() {
               className="animate-fade-up flex w-full flex-col items-center gap-4 sm:w-auto sm:flex-row"
               style={{ animationDelay: "0.4s" }}
             >
-              <div className="relative w-full sm:w-auto" ref={dropdownRef}>
+              <div className="relative z-50 w-full sm:w-auto" ref={dropdownRef}>
                 <button
                   className="bg-accent flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border-none px-7 py-3.5 font-sans text-[15px] font-bold tracking-[0.04em] text-black shadow-[0_0_24px_rgba(0,229,160,0.3)] transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_4px_32px_rgba(0,229,160,0.3)] sm:w-auto sm:justify-start"
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -113,25 +121,27 @@ export default function HomePage() {
                 </button>
 
                 {isDropdownOpen && (
-                  <div className="bg-surface absolute top-[calc(100%+10px)] left-0 w-full min-w-40 overflow-hidden rounded-xl border border-white/18 shadow-[0_16px_40px_rgba(0,0,0,0.6)] sm:w-auto">
+                  <div className="absolute top-[calc(100%+10px)] left-0 z-50 w-full min-w-56 overflow-hidden rounded-xl border border-white/20 bg-zinc-950 shadow-[0_16px_40px_rgba(0,0,0,0.8)] sm:w-auto">
                     <button
-                      className="text-foreground flex w-full cursor-pointer items-center gap-2.5 border-none bg-transparent px-4.5 py-4.5 text-left font-sans text-[14px] tracking-[0.02em] transition-colors duration-150 hover:bg-white/5"
+                      className="flex w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4.5 py-4 text-left font-sans text-[15px] font-medium tracking-[0.02em] text-white transition-colors duration-150 hover:bg-white/10"
                       onClick={() => setIsDropdownOpen(false)}
                     >
-                      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-white/5 text-[14px]">
-                        📡
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/10 text-white">
+                        <MonitorUp size={18} />
                       </span>
-                      To nearby device
+                      <span className="whitespace-nowrap">
+                        Choose from device
+                      </span>
                     </button>
-                    <div className="h-px bg-white/8" />
+                    <div className="h-px bg-white/10" />
                     <button
-                      className="text-foreground flex w-full cursor-pointer items-center gap-2.5 border-none bg-transparent px-4.5 py-3 text-left font-sans text-[14px] tracking-[0.02em] transition-colors duration-150 hover:bg-white/5"
+                      className="flex w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4.5 py-4 text-left font-sans text-[15px] font-medium tracking-[0.02em] text-white transition-colors duration-150 hover:bg-white/10"
                       onClick={() => setIsDropdownOpen(false)}
                     >
-                      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-white/5 text-[14px]">
-                        💾
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/10 text-white">
+                        <Archive size={18} />
                       </span>
-                      Save locally
+                      <span className="whitespace-nowrap">Saved items</span>
                     </button>
                   </div>
                 )}
@@ -185,13 +195,7 @@ export default function HomePage() {
           </section>
 
           {/* footer */}
-          <footer className="flex flex-col items-center justify-between gap-3 border-t border-white/8 p-5 text-center sm:flex-row sm:px-8 sm:py-5 sm:text-left">
-            <a
-              href="#"
-              className="text-muted hover:text-foreground font-mono text-[12px] tracking-[0.06em] uppercase no-underline transition-colors duration-200"
-            >
-              View local saved
-            </a>
+          <footer className="flex flex-col items-center justify-center gap-3 border-t border-white/8 p-5 text-center sm:flex-row sm:px-8 sm:py-5 sm:text-left">
             <div className="font-mono text-[11px] tracking-[0.06em] text-white/20">
               Built by <span className="text-accent">Prajwal-17</span>
             </div>
