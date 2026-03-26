@@ -2,16 +2,14 @@
 
 import { featurePills, steps } from "@/constants";
 import { Archive, Cast, Download, MonitorUp, Send } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
 
 export default function HomePage() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setMounted(true);
     const handleClick = (e: MouseEvent) => {
       if (
         dropdownRef.current &&
@@ -121,14 +119,18 @@ export default function HomePage() {
                       className="absolute top-[calc(100%+8px)] left-0 z-50 w-full min-w-44 overflow-hidden rounded-lg border border-white/10 bg-[#111214] p-1.5 shadow-xl sm:w-auto"
                     >
                       <button
-                        className="flex w-full cursor-pointer items-center gap-2.5 rounded-md bg-transparent px-3 py-2 text-left font-sans text-sm font-medium tracking-[0.01em] text-foreground transition-colors duration-150 hover:bg-white/10 hover:text-white"
-                        onClick={() => setIsDropdownOpen(false)}
+                        className="text-foreground flex w-full cursor-pointer items-center gap-2.5 rounded-md bg-transparent px-3 py-2 text-left font-sans text-sm font-medium tracking-[0.01em] transition-colors duration-150 hover:bg-white/10 hover:text-white"
+                        onClick={() => {
+                          setIsDropdownOpen(false);
+                        }}
                       >
                         <MonitorUp size={16} className="text-muted shrink-0" />
-                        <span className="whitespace-nowrap">Choose from device</span>
+                        <span className="whitespace-nowrap">
+                          Choose from device
+                        </span>
                       </button>
                       <button
-                        className="flex w-full cursor-pointer items-center gap-2.5 rounded-md bg-transparent px-3 py-2 text-left font-sans text-sm font-medium tracking-[0.01em] text-foreground transition-colors duration-150 hover:bg-white/10 hover:text-white"
+                        className="text-foreground flex w-full cursor-pointer items-center gap-2.5 rounded-md bg-transparent px-3 py-2 text-left font-sans text-sm font-medium tracking-[0.01em] transition-colors duration-150 hover:bg-white/10 hover:text-white"
                         onClick={() => setIsDropdownOpen(false)}
                       >
                         <Archive size={16} className="text-muted shrink-0" />
@@ -174,7 +176,11 @@ export default function HomePage() {
                 key={idx}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.5 + idx * 0.1, ease: "easeOut" }}
+                transition={{
+                  duration: 0.5,
+                  delay: 0.5 + idx * 0.1,
+                  ease: "easeOut",
+                }}
                 className={`relative flex w-1/2 flex-col items-center p-4 text-center sm:w-auto sm:px-8 sm:py-0 ${
                   idx !== 2
                     ? "sm:after:absolute sm:after:top-5.5 sm:after:right-0 sm:after:h-10 sm:after:w-px sm:after:bg-white/8"
@@ -194,7 +200,6 @@ export default function HomePage() {
             ))}
           </section>
 
-          {/* footer */}
           <footer className="flex flex-col items-center justify-center gap-3 border-t border-white/8 p-5 text-center sm:flex-row sm:px-8 sm:py-5 sm:text-left">
             <div className="font-mono text-[11px] tracking-[0.06em] text-white/20">
               Built by <span className="text-accent">Prajwal-17</span>
