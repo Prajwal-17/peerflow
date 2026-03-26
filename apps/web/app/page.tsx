@@ -3,6 +3,7 @@
 import { featurePills, steps } from "@/constants";
 import { Archive, Cast, Download, MonitorUp, Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 
 export default function HomePage() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -25,24 +26,6 @@ export default function HomePage() {
 
   return (
     <>
-      <style>{`
-        @keyframes pulse-custom {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.6; transform: scale(0.85); }
-        }
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-up {
-          opacity: 0;
-          animation: fadeUp 0.6s ease forwards;
-        }
-        .animate-pulse-custom {
-          animation: pulse-custom 2s infinite;
-        }
-      `}</style>
-
       <div className="bg-background text-foreground relative flex min-h-screen flex-col overflow-x-hidden font-sans">
         {/* grids and glows */}
         <div
@@ -83,79 +66,94 @@ export default function HomePage() {
           </nav>
 
           <main className="flex flex-1 flex-col items-center justify-center px-6 pt-10 pb-8 text-center sm:px-8 sm:pt-14 sm:pb-12">
-            <h1
-              className="animate-fade-up mb-4 text-[clamp(44px,6vw,76px)] leading-none font-extrabold tracking-[-0.03em] text-white"
-              style={{ animationDelay: "0.2s" }}
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
+              className="mb-4 text-[clamp(44px,6vw,76px)] leading-none font-extrabold tracking-[-0.03em] text-white"
             >
               Share files
               <br />
               <span className="text-accent relative">instantly.</span>
-            </h1>
+            </motion.h1>
 
-            <p
-              className="animate-fade-up text-muted mb-10 max-w-130 text-[16px] leading-[1.6] font-normal"
-              style={{ animationDelay: "0.3s" }}
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
+              className="text-muted mb-10 max-w-130 text-[16px] leading-[1.6] font-normal"
             >
               Direct device to device transfer over WebRTC & UDP. No middlemen,
               no cloud, no limits — just fast, private, peer to peer file
               sharing.
-            </p>
+            </motion.p>
 
             {/* CTA */}
-            <div
-              className="animate-fade-up flex w-full flex-col items-center gap-4 sm:w-auto sm:flex-row"
-              style={{ animationDelay: "0.4s" }}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3, ease: "easeOut" }}
+              className="flex w-full flex-col items-center gap-4 sm:w-auto sm:flex-row"
             >
               <div className="relative z-50 w-full sm:w-auto" ref={dropdownRef}>
-                <button
-                  className="bg-accent flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border-none px-7 py-3.5 font-sans text-[15px] font-bold tracking-[0.04em] text-black shadow-[0_0_24px_rgba(0,229,160,0.3)] transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_4px_32px_rgba(0,229,160,0.3)] sm:w-auto sm:justify-start"
+                <motion.button
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="bg-accent flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border-none px-7 py-3.5 font-sans text-[15px] font-bold tracking-[0.04em] text-black shadow-[0_0_24px_rgba(0,229,160,0.3)] transition-all duration-150 hover:shadow-[0_4px_32px_rgba(0,229,160,0.3)] sm:w-auto sm:justify-start"
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 >
                   <Send size={18} />
                   Send a file
-                  <div
-                    className={`ml-0.5 h-1.5 w-1.5 border-r-2 border-b-2 border-black transition-transform duration-200 ${
-                      isDropdownOpen ? "-rotate-135" : "rotate-45"
-                    }`}
+                  <motion.div
+                    animate={{ rotate: isDropdownOpen ? -135 : 45 }}
+                    transition={{ ease: "easeInOut", duration: 0.2 }}
+                    className="ml-0.5 h-1.5 w-1.5 border-r-2 border-b-2 border-black"
                   />
-                </button>
+                </motion.button>
 
-                {isDropdownOpen && (
-                  <div className="absolute top-[calc(100%+10px)] left-0 z-50 w-full min-w-56 overflow-hidden rounded-xl border border-white/20 bg-zinc-950 shadow-[0_16px_40px_rgba(0,0,0,0.8)] sm:w-auto">
-                    <button
-                      className="flex w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4.5 py-4 text-left font-sans text-[15px] font-medium tracking-[0.02em] text-white transition-colors duration-150 hover:bg-white/10"
-                      onClick={() => setIsDropdownOpen(false)}
+                <AnimatePresence>
+                  {isDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                      transition={{ duration: 0.15, ease: "easeOut" }}
+                      className="absolute top-[calc(100%+8px)] left-0 z-50 w-full min-w-44 overflow-hidden rounded-lg border border-white/10 bg-[#111214] p-1.5 shadow-xl sm:w-auto"
                     >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/10 text-white">
-                        <MonitorUp size={18} />
-                      </span>
-                      <span className="whitespace-nowrap">
-                        Choose from device
-                      </span>
-                    </button>
-                    <div className="h-px bg-white/10" />
-                    <button
-                      className="flex w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4.5 py-4 text-left font-sans text-[15px] font-medium tracking-[0.02em] text-white transition-colors duration-150 hover:bg-white/10"
-                      onClick={() => setIsDropdownOpen(false)}
-                    >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/10 text-white">
-                        <Archive size={18} />
-                      </span>
-                      <span className="whitespace-nowrap">Saved items</span>
-                    </button>
-                  </div>
-                )}
+                      <button
+                        className="flex w-full cursor-pointer items-center gap-2.5 rounded-md bg-transparent px-3 py-2 text-left font-sans text-sm font-medium tracking-[0.01em] text-foreground transition-colors duration-150 hover:bg-white/10 hover:text-white"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        <MonitorUp size={16} className="text-muted shrink-0" />
+                        <span className="whitespace-nowrap">Choose from device</span>
+                      </button>
+                      <button
+                        className="flex w-full cursor-pointer items-center gap-2.5 rounded-md bg-transparent px-3 py-2 text-left font-sans text-sm font-medium tracking-[0.01em] text-foreground transition-colors duration-150 hover:bg-white/10 hover:text-white"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        <Archive size={16} className="text-muted shrink-0" />
+                        <span className="whitespace-nowrap">Saved items</span>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
-              <button className="text-foreground flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border-[1.5px] border-white/8 bg-transparent px-7 py-3.25 font-sans text-[15px] font-semibold tracking-[0.04em] transition-all duration-200 hover:-translate-y-0.5 hover:border-white/35 hover:bg-white/4 sm:w-auto sm:justify-start">
+              <motion.button
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                className="text-foreground flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border-[1.5px] border-white/8 bg-transparent px-7 py-3.25 font-sans text-[15px] font-semibold tracking-[0.04em] transition-colors duration-200 hover:border-white/35 hover:bg-white/4 sm:w-auto sm:justify-start"
+              >
                 <Download size={16} />
                 Receive
-              </button>
-            </div>
+              </motion.button>
+            </motion.div>
 
-            <div
-              className="animate-fade-up mt-10 flex flex-wrap justify-center gap-2.5"
-              style={{ animationDelay: "0.5s" }}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
+              className="mt-10 flex flex-wrap justify-center gap-2.5"
             >
               {featurePills.map((f) => (
                 <div
@@ -166,20 +164,22 @@ export default function HomePage() {
                   {f}
                 </div>
               ))}
-            </div>
+            </motion.div>
           </main>
 
           {/* steps */}
           <section className="flex flex-wrap justify-center gap-0 px-6 pb-12 sm:flex-nowrap sm:px-8 sm:pb-16">
             {steps.map((s, idx) => (
-              <div
+              <motion.div
                 key={idx}
-                className={`animate-fade-up relative flex w-1/2 flex-col items-center p-4 text-center sm:w-auto sm:px-8 sm:py-0 ${
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.5 + idx * 0.1, ease: "easeOut" }}
+                className={`relative flex w-1/2 flex-col items-center p-4 text-center sm:w-auto sm:px-8 sm:py-0 ${
                   idx !== 2
                     ? "sm:after:absolute sm:after:top-5.5 sm:after:right-0 sm:after:h-10 sm:after:w-px sm:after:bg-white/8"
                     : ""
                 }`}
-                style={{ animationDelay: s.delay }}
               >
                 <div className="text-accent mb-2.5 font-mono text-[11px] tracking-[0.12em] uppercase">
                   {s.id}
@@ -190,7 +190,7 @@ export default function HomePage() {
                 <div className="text-muted max-w-35 font-mono text-[12px] leading-[1.6]">
                   {s.desc}
                 </div>
-              </div>
+              </motion.div>
             ))}
           </section>
 
