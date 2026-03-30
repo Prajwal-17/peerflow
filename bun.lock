@@ -14,7 +14,9 @@
       "name": "backend",
       "dependencies": {
         "@repo/types": "workspace:*",
+        "@repo/typescript-config": "workspace:*",
         "hono": "^4.11.7",
+        "short-unique-id": "^5.3.2",
         "uuid": "^13.0.0",
       },
       "devDependencies": {

@@ -2,126 +2,119 @@ import { SOCKET_EVENT } from "@repo/types";
 import { Hono } from "hono";
 import { upgradeWebSocket, websocket } from "hono/bun";
 import type { WSContext } from "hono/ws";
+import ShortUniqueId = require("short-unique-id");
 
 const app = new Hono();
 
 // roomId , peerId, WebSocket
 const rooms = new Map<string, Map<string, WSContext>>();
 
+const { randomUUID } = new ShortUniqueId({
+  dictionary: "alpha_upper",
+  length: 5,
+});
+
+const broadcastToRoom = (roomId: string, localPeerId: string, payload: any) => {
+  const room = rooms.get(roomId);
+  if (!room) return;
+  for (const [peerId, ws] of room.entries()) {
+    if (peerId !== localPeerId) {
+      ws.send(JSON.stringify({ ...payload }));
+    }
+  }
+};
+
 app.get(
   "/ws",
   upgradeWebSocket((c) => {
+    let currentRoomId: string | null = null;
+    let currentPeerId: string | null = null;
+
     return {
       onMessage(event, ws) {
         const data = JSON.parse(event.data.toString());
-        // validate roomId || peerId
+        const { type, roomId, localPeerId, ...rest } = data;
 
-        if (
-          data.type === SOCKET_EVENT.CREATE_ROOM ||
-          data.type === SOCKET_EVENT.JOIN_ROOM
-        ) {
-          const roomExists = rooms.has(data.roomId);
-          if (!roomExists) {
-            rooms.set(data.roomId, new Map());
-            const room = rooms.get(data.roomId);
-            room?.set(data.localPeerId, ws);
+        currentPeerId = localPeerId;
+
+        // switch
+        switch (type) {
+          case SOCKET_EVENT.CREATE_ROOM: {
+            const newRoomId = randomUUID();
+
+            currentRoomId = newRoomId;
+
+            rooms.set(newRoomId, new Map());
+            const room = rooms.get(newRoomId);
+            room?.set(localPeerId, ws); // auto join sender
             ws.send(
               JSON.stringify({
-                msg: "Successfully create room",
-              }),
-            );
-            return;
-          }
-
-          const room = rooms.get(data.roomId);
-          room?.set(data.localPeerId, ws);
-
-          const remotePeerId = Array.from(room?.keys() || []).find(
-            (id) => id !== data.localPeerId,
-          );
-
-          ws.send(
-            JSON.stringify({
-              type: SOCKET_EVENT.ROOM_JOINED,
-              remotePeerId,
-              msg: "Successfully joined room",
-            }),
-          );
-
-          if (remotePeerId) {
-            const currRoom = rooms.get(data.roomId);
-            const remoteWs = currRoom?.get(remotePeerId);
-
-            remoteWs?.send(
-              JSON.stringify({
-                type: SOCKET_EVENT.PEER_JOINED,
-                remotePeerId: data.localPeerId,
+                type: SOCKET_EVENT.ROOM_JOINED,
+                roomId: newRoomId,
                 msg: "Successfully joined room",
               }),
             );
+            console.log("createRoom", rooms);
+            break;
           }
 
-          return;
-        }
+          case SOCKET_EVENT.JOIN_ROOM: {
+            if (!roomId || !rooms?.has(roomId)) {
+              ws.send(
+                JSON.stringify({
+                  type: SOCKET_EVENT.ERROR,
+                  msg: "Room not found",
+                }),
+              );
+            }
+            currentRoomId = roomId;
 
-        if (data.type === SOCKET_EVENT.OFFER) {
-          const room = rooms.get(data.roomId);
+            const room = rooms.get(roomId);
+            room?.set(localPeerId, ws);
 
-          const remotePeerId = Array.from(room?.keys() || []).find(
-            (id) => id !== data.localPeerId,
-          );
-
-          if (remotePeerId) {
-            const remoteWs = room?.get(remotePeerId);
-            remoteWs?.send(
+            ws.send(
               JSON.stringify({
-                type: SOCKET_EVENT.OFFER,
-                roomId: data.roomId,
-                localPeerId: data.localPeerId,
-                offer: data.offer,
+                type: SOCKET_EVENT.ROOM_JOINED,
+                roomId: roomId,
+                msg: "Joined",
               }),
             );
+
+            broadcastToRoom(roomId, localPeerId, {
+              type: SOCKET_EVENT.PEER_JOINED,
+              remotePeerId: localPeerId,
+            });
+            break;
+          }
+
+          case SOCKET_EVENT.OFFER:
+          case SOCKET_EVENT.ANSWER:
+          case SOCKET_EVENT.ICE_CANDIDATE: {
+            broadcastToRoom(roomId, localPeerId, {
+              type: type,
+              roomId: roomId,
+              localPeerId: localPeerId,
+              ...rest,
+            });
+            break;
+          }
+
+          default: {
+            console.warn("Unknown Socket Event type:", type);
           }
         }
-
-        if (data.type === SOCKET_EVENT.ICE_CANDIDATE) {
-          const room = rooms.get(data.roomId);
-          // room?.set(data.localPeerId, ws);
-
-          const remotePeerId = Array.from(room?.keys() || []).find(
-            (id) => id !== data.localPeerId,
-          );
-
-          if (remotePeerId) {
-            const remoteWs = room?.get(remotePeerId);
-            remoteWs?.send(
-              JSON.stringify({
-                type: SOCKET_EVENT.ICE_CANDIDATE,
-                roomId: data.roomId,
-                localPeerId: data.localPeerId,
-                candidate: data.candidate,
-              }),
-            );
-          }
-        }
-
-        if (data.type === SOCKET_EVENT.ANSWER) {
-          const room = rooms.get(data.roomId);
-
-          const remotePeerId = Array.from(room?.keys() || []).find(
-            (id) => id !== data.localPeerId,
-          );
-
-          if (remotePeerId) {
-            const remoteWs = room?.get(remotePeerId);
-            remoteWs?.send(
-              JSON.stringify({
-                type: SOCKET_EVENT.ANSWER,
-                roomId: data.roomId,
-                localPeerId: data.localPeerId,
-                answer: data.answer,
-              }),
-            );
+      },
+      onClose() {
+        if (currentRoomId && currentPeerId) {
+          const room = rooms.get(currentRoomId);
+          room?.delete(currentPeerId);
+          if (room?.size === 0) {
+            rooms.delete(currentRoomId);
+          } else {
+            broadcastToRoom(currentRoomId, currentPeerId, {
+              type: SOCKET_EVENT.PEER_LEFT,
+              peerId: currentPeerId,
+            });
           }
         }
       },
