@@ -1,15 +1,13 @@
+import { usePeerStore } from "@/store/peerStore";
 import { SOCKET_EVENT } from "@repo/types";
 import ShortUniqueId from "short-unique-id";
 import { config } from "../constants";
 import { useFileTransferStore } from "../store/fileTransferStore";
 
-const { randomUUID } = new ShortUniqueId({
-  dictionary: "alpha_upper",
-  length: 5,
-});
+const { randomUUID } = new ShortUniqueId();
 
 export class PeerSession {
-  roomId: string = randomUUID();
+  roomId: string = "";
   socket: WebSocket | null = null;
 
   localPeerId: string = randomUUID(16);
@@ -32,9 +30,9 @@ export class PeerSession {
     return this._pc;
   }
 
-  setLocalPeerId(id: string) {
-    this.localPeerId = id;
-  }
+  // setLocalPeerId(id: string) {
+  //   this.localPeerId = id;
+  // }
 
   setRemotePeerId(id: string) {
     this.remotePeerId = id;
@@ -64,6 +62,16 @@ export class PeerSession {
 
   setWritableStream(stream: FileSystemWritableFileStream | null) {
     this.writableStream = stream;
+  }
+
+  createRoomAndJoin() {
+    usePeerStore.getState().setLocalPeerId(this.localPeerId);
+    this.socket?.send(
+      JSON.stringify({
+        type: SOCKET_EVENT.CREATE_ROOM,
+        localPeerId: this.localPeerId,
+      }),
+    );
   }
 
   // both sender and receiver
@@ -116,7 +124,7 @@ export class PeerSession {
 
   async createAndSendOffer(localPeerId: string) {
     try {
-      const offer = await this.pc.createOffer();
+      const offer: RTCSessionDescriptionInit = await this.pc.createOffer();
       await this.pc.setLocalDescription(offer);
 
       this.socket?.send(

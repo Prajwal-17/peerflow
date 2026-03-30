@@ -1,10 +1,12 @@
 import { SOCKET_EVENT } from "@repo/types";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { peerSession } from "../lib/peerSession";
 import { usePeerStore } from "../store/peerStore";
 
 const useSignalling = () => {
   const [isConnected, setIsConnected] = useState<boolean>(false);
+  const router = useRouter();
 
   useEffect(() => {
     const ws = new WebSocket(
@@ -18,6 +20,21 @@ const useSignalling = () => {
       const data = JSON.parse(event.data);
 
       switch (data.type) {
+        case SOCKET_EVENT.ROOM_JOINED: {
+          usePeerStore.getState().setRoomId(data.roomId);
+          usePeerStore.getState().setIsRoomJoined(true);
+          router.push(`${usePeerStore.getState().roomId}/send`);
+
+          // usePeerStore.getState().setRemotePeerId(data.remotePeerId);
+          // peerSession.setRemotePeerId(data.remotePeerId);
+          // peerSession.createRTCPeerConn(peerSession.localPeerId);
+          // peerSession.listenOnDataChannel(() => {
+          //   peerSession.listenOnCtrlChannel();
+          //   peerSession.listenOnTransferChannel();
+          // });
+          break;
+        }
+
         case SOCKET_EVENT.PEER_JOINED: {
           usePeerStore.getState().setRemotePeerId(data.remotePeerId);
           peerSession.setRemotePeerId(data.remotePeerId);
@@ -25,17 +42,6 @@ const useSignalling = () => {
           peerSession.createCtrlChannel();
           peerSession.createTransferChannel();
           peerSession.createAndSendOffer(peerSession.localPeerId);
-          break;
-        }
-
-        case SOCKET_EVENT.ROOM_JOINED: {
-          usePeerStore.getState().setRemotePeerId(data.remotePeerId);
-          peerSession.setRemotePeerId(data.remotePeerId);
-          peerSession.createRTCPeerConn(peerSession.localPeerId);
-          peerSession.listenOnDataChannel(() => {
-            peerSession.listenOnCtrlChannel();
-            peerSession.listenOnTransferChannel();
-          });
           break;
         }
 

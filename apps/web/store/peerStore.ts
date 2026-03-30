@@ -1,16 +1,19 @@
+import { PeerType } from "@repo/types";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 
 type PeerStore = {
   roomId: string;
+  isRoomJoined: boolean;
   localPeerId: string;
   remotePeerId: string;
-  type: "send" | "receive" | undefined;
+  peerType: PeerType | undefined;
   selectedFiles: File[];
   setRoomId: (id: string) => void;
+  setIsRoomJoined: (value: boolean) => void;
   setLocalPeerId: (id: string) => void;
   setRemotePeerId: (id: string) => void;
-  setType: (type: "send" | "receive") => void;
+  setPeerType: (type: PeerType) => void;
   setSelectedFiles: (files: File[] | []) => void;
 };
 
@@ -19,14 +22,20 @@ export const usePeerStore = create<PeerStore>()(
     roomId: "",
     setRoomId: (id) => set({ roomId: id }),
 
+    isRoomJoined: false,
+    setIsRoomJoined: (value) =>
+      set({
+        isRoomJoined: value,
+      }),
+
     localPeerId: "",
     setLocalPeerId: (id) => set({ localPeerId: id }),
 
     remotePeerId: "",
     setRemotePeerId: (id) => set({ remotePeerId: id }),
 
-    type: undefined,
-    setType: (type) => set({ type }),
+    peerType: undefined,
+    setPeerType: (type) => set({ peerType: type }),
 
     selectedFiles: [],
     setSelectedFiles: (files) =>
