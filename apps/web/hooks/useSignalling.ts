@@ -23,17 +23,21 @@ const useSignalling = () => {
         case SOCKET_EVENT.ROOM_JOINED: {
           usePeerStore.getState().setRoomId(data.roomId);
           usePeerStore.getState().setIsRoomJoined(true);
-          router.push(`${data.roomId}/send`);
+          if (data.redirect) {
+            router.push(`${data.roomId}/send`);
+          }
           break;
         }
 
         case SOCKET_EVENT.PEER_JOINED: {
           usePeerStore.getState().setRemotePeerId(data.remotePeerId);
           peerSession.setRemotePeerId(data.remotePeerId);
-          peerSession.createRTCPeerConn(peerSession.localPeerId);
-          peerSession.createCtrlChannel();
-          peerSession.createTransferChannel();
-          peerSession.createAndSendOffer(peerSession.localPeerId);
+
+          // start creating rtc conn
+          // peerSession.createRTCPeerConn(peerSession.localPeerId);
+          // peerSession.createCtrlChannel();
+          // peerSession.createTransferChannel();
+          // peerSession.createAndSendOffer(peerSession.localPeerId);
           break;
         }
 
@@ -58,7 +62,7 @@ const useSignalling = () => {
 
     // Never disconnect on unmount — the connection must survive page transitions.
     // The server/browser will clean it up when the tab closes.
-  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 };
 
 export default useSignalling;
