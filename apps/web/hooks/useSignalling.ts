@@ -4,14 +4,6 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { peerSession } from "../lib/peerSession";
 
-/**
- * Initialises the signalling WebSocket exactly once for the entire app session.
- * Safe to call from any page — peerSession.connect() is a no-op when a
- * connection is already open or connecting, so multiple calls are harmless.
- *
- * Mount this hook at the layout level (or at minimum on every top-level page)
- * so the connection is available wherever it is needed.
- */
 const useSignalling = () => {
   const router = useRouter();
 
@@ -22,6 +14,7 @@ const useSignalling = () => {
       switch (data.type) {
         case SOCKET_EVENT.ROOM_JOINED: {
           usePeerStore.getState().setRoomId(data.roomId);
+          peerSession.setRoomId(data.roomId);
           usePeerStore.getState().setIsRoomJoined(true);
           if (data.redirect) {
             router.push(`${data.roomId}/send`);
@@ -33,11 +26,12 @@ const useSignalling = () => {
           usePeerStore.getState().setRemotePeerId(data.remotePeerId);
           peerSession.setRemotePeerId(data.remotePeerId);
 
-          // start creating rtc conn
-          // peerSession.createRTCPeerConn(peerSession.localPeerId);
-          // peerSession.createCtrlChannel();
-          // peerSession.createTransferChannel();
-          // peerSession.createAndSendOffer(peerSession.localPeerId);
+          peerSession.createRTCPeerConn();
+          peerSession.createCtrlChannel();
+          peerSession.createTransferChannel();
+
+          peerSession.createAndSendOffer();
+
           break;
         }
 
@@ -46,7 +40,8 @@ const useSignalling = () => {
           break;
 
         case SOCKET_EVENT.OFFER:
-          peerSession.handleOffer(data.offer, peerSession.localPeerId);
+          // create a rtc conn and then accept offer
+          peerSession.handleOffer(data.offer);
           break;
 
         case SOCKET_EVENT.ANSWER:
@@ -59,9 +54,6 @@ const useSignalling = () => {
       process.env.NEXT_PUBLIC_SIGNALLING_SERVER as string,
       handleMessage,
     );
-
-    // Never disconnect on unmount — the connection must survive page transitions.
-    // The server/browser will clean it up when the tab closes.
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 };
 

@@ -14,6 +14,8 @@ export class PeerSession {
   remotePeerId: string = "";
 
   _pc: RTCPeerConnection | null = null;
+  pendingCandidates: RTCIceCandidateInit[] | null = null;
+  remoteDescriptionSet: boolean = false;
   ctrlChannel: RTCDataChannel | null = null;
   transferChannel: RTCDataChannel | null = null;
 
@@ -123,17 +125,21 @@ export class PeerSession {
   }
 
   // both sender and receiver
-  createRTCPeerConn(localPeerId: string) {
+  createRTCPeerConn() {
+    this.pendingCandidates = [];
+    this.remoteDescriptionSet = false;
+
     const pc = new RTCPeerConnection(config);
     this.pc = pc;
 
     pc.onicecandidate = async (event) => {
       if (event.candidate) {
+        console.log("creat rtc", this.roomId, this.localPeerId);
         this.socket?.send(
           JSON.stringify({
             type: SOCKET_EVENT.ICE_CANDIDATE,
             roomId: this.roomId,
-            localPeerId: localPeerId,
+            localPeerId: this.localPeerId,
             candidate: event.candidate,
           }),
         );
@@ -142,10 +148,10 @@ export class PeerSession {
   }
 
   async handleIceCandidate(candidate: RTCIceCandidateInit) {
-    try {
+    if (this.remoteDescriptionSet) {
       await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
-    } catch (error) {
-      console.log(error);
+    } else {
+      this.pendingCandidates?.push(candidate);
     }
   }
 
@@ -170,7 +176,7 @@ export class PeerSession {
     this.transferChannel.bufferedAmountLowThreshold = 64 * 1024;
   }
 
-  async createAndSendOffer(localPeerId: string) {
+  async createAndSendOffer() {
     try {
       const offer: RTCSessionDescriptionInit = await this.pc.createOffer();
       await this.pc.setLocalDescription(offer);
@@ -179,7 +185,7 @@ export class PeerSession {
         JSON.stringify({
           type: SOCKET_EVENT.OFFER,
           roomId: this.roomId,
-          localPeerId,
+          localPeerId: this.localPeerId,
           offer,
         }),
       );
@@ -188,9 +194,21 @@ export class PeerSession {
     }
   }
 
-  async handleOffer(offer: RTCSessionDescription, localPeerId: string) {
+  async handleOffer(offer: RTCSessionDescription) {
     try {
+      if (!this._pc) {
+        this.createRTCPeerConn();
+      }
+
       await this.pc.setRemoteDescription(offer);
+      this.remoteDescriptionSet = true;
+
+      // Drain queued candidates
+      for (const candidate of this.pendingCandidates!) {
+        await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+      this.pendingCandidates = [];
+
       const answer = await this.pc.createAnswer();
       await this.pc.setLocalDescription(answer);
 
@@ -198,8 +216,8 @@ export class PeerSession {
         JSON.stringify({
           type: SOCKET_EVENT.ANSWER,
           roomId: this.roomId,
-          localPeerId,
-          answer: answer,
+          localPeerId: this.localPeerId,
+          answer,
         }),
       );
     } catch (error) {
@@ -208,11 +226,14 @@ export class PeerSession {
   }
 
   async handleAnswer(answer: RTCSessionDescriptionInit) {
-    try {
-      await this.pc.setRemoteDescription(answer);
-    } catch (error) {
-      console.log(error);
+    await this.pc.setRemoteDescription(answer);
+
+    this.remoteDescriptionSet = true;
+
+    for (const candidate of this.pendingCandidates!) {
+      await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
     }
+    this.pendingCandidates = [];
   }
 
   listenOnDataChannel(onReady?: () => void) {
