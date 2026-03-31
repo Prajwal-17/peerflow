@@ -1,5 +1,6 @@
 "use client";
 
+import { usePeerStore } from "@/store/peerStore";
 import {
   CheckCircle2,
   Copy,
@@ -22,6 +23,8 @@ export default function SendPage() {
   const [dummyProgress] = useState(68);
   const [showQr, setShowQr] = useState(false);
   const [inviteLink, setInviteLink] = useState("");
+
+  const selectedFiles = usePeerStore((state) => state.selectedFiles);
 
   useEffect(() => {
     setInviteLink(`${window.location.origin}/${roomId || "25232"}`);
@@ -86,7 +89,7 @@ export default function SendPage() {
             <div className="mb-8 flex w-full max-w-2xl items-center justify-center gap-8 sm:gap-16">
               <div className="flex flex-col items-center gap-2">
                 <div className="flex items-center gap-2 text-lg font-medium text-white">
-                  <User size={20} className="text-muted" /> You | (name)
+                  <User size={20} className="text-muted" /> You (Sender)
                 </div>
                 <span className="text-muted font-mono text-xs tracking-wider uppercase">
                   Sending
@@ -101,7 +104,7 @@ export default function SendPage() {
 
               <div className="flex flex-col items-center gap-2">
                 <div className="flex items-center gap-2 text-lg font-medium text-white">
-                  <User size={20} className="text-muted" /> P2 | (name)
+                  <User size={20} className="text-muted" /> Receiver
                 </div>
                 <span className="text-muted font-mono text-xs tracking-wider uppercase">
                   Receiving
@@ -112,47 +115,52 @@ export default function SendPage() {
             {/* Transfer List Container */}
             <div className="relative mb-6 w-full max-w-3xl rounded-xl border border-white/10 bg-[#111214]/50 p-4 shadow-2xl backdrop-blur-md sm:p-5">
               {/* File Item */}
-              <div className="group relative rounded-lg border border-white/10 bg-black/40 p-3 transition-colors hover:border-white/20">
-                <div className="flex items-start gap-3.5 sm:items-center">
-                  <div className="text-muted mt-0.5 rounded-md bg-white/5 p-2.5 transition-colors group-hover:text-white/80 sm:mt-0">
-                    <FileText size={18} />
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-1.5 flex flex-col gap-0.5 sm:flex-row sm:items-end sm:justify-between sm:gap-0">
-                      <span className="truncate text-[14px] font-medium text-white">
-                        Report.pdf
-                      </span>
-                      <span className="font-mono text-[12px] leading-none text-white">
-                        {dummyProgress}%
-                      </span>
+              {selectedFiles.map((f, idx) => (
+                <div
+                  key={idx}
+                  className="group relative rounded-lg border border-white/10 bg-black/40 p-3 transition-colors hover:border-white/20"
+                >
+                  <div className="flex items-start gap-3.5 sm:items-center">
+                    <div className="text-muted mt-0.5 rounded-md bg-white/5 p-2.5 transition-colors group-hover:text-white/80 sm:mt-0">
+                      <FileText size={18} />
                     </div>
 
-                    {/* Progress Bar Container */}
-                    <div className="mb-2 h-1 w-full overflow-hidden rounded-full bg-white/10">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${dummyProgress}%` }}
-                        transition={{ duration: 1, ease: "easeOut" }}
-                        className="bg-accent relative h-full rounded-full shadow-[0_0_10px_rgba(0,229,160,0.5)]"
-                      />
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1.5 flex flex-col gap-0.5 sm:flex-row sm:items-end sm:justify-between sm:gap-0">
+                        <span className="truncate text-[14px] font-medium text-white">
+                          {f.name}
+                        </span>
+                        <span className="font-mono text-[12px] leading-none text-white">
+                          {dummyProgress}%
+                        </span>
+                      </div>
+
+                      {/* Progress Bar Container */}
+                      <div className="mb-2 h-1 w-full overflow-hidden rounded-full bg-white/10">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${dummyProgress}%` }}
+                          transition={{ duration: 1, ease: "easeOut" }}
+                          className="bg-accent relative h-full rounded-full shadow-[0_0_10px_rgba(0,229,160,0.5)]"
+                        />
+                      </div>
+
+                      {/* Stats */}
+                      <div className="text-muted flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-[10.5px] leading-none">
+                        <span>4.2 MB / 5.0 MB</span>
+                        <span>1.2 MB/s</span>
+                        <span>~ 3sec left</span>
+                      </div>
                     </div>
 
-                    {/* Stats */}
-                    <div className="text-muted flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-[10.5px] leading-none">
-                      <span>4.2 MB / 5.0 MB</span>
-                      <span>1.2 MB/s</span>
-                      <span>~ 3sec left</span>
-                    </div>
-                  </div>
-
-                  <div className="ml-2 flex flex-col items-end justify-center sm:ml-3">
-                    <div className="text-accent bg-accent/10 border-accent/20 flex h-7 w-7 items-center justify-center rounded-full border">
-                      <CheckCircle2 size={14} />
+                    <div className="ml-2 flex flex-col items-end justify-center sm:ml-3">
+                      <div className="text-accent bg-accent/10 border-accent/20 flex h-7 w-7 items-center justify-center rounded-full border">
+                        <CheckCircle2 size={14} />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              ))}
             </div>
 
             {/* Summary Information */}

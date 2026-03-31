@@ -7,17 +7,18 @@ import { usePeerStore } from "@/store/peerStore";
 import { PEER_TYPE } from "@repo/types";
 import { Archive, Cast, Download, MonitorUp, Send } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
 export default function HomePage() {
+  const router = useRouter();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const setPeerType = usePeerStore((state) => state.setPeerType);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { isConnected } = useSignalling();
+  useSignalling();
   const {
-    createAndJoinRoom,
     handleFilesSelected,
     handleChooseFromDevice,
     handleChooseSavedItems,
@@ -102,7 +103,6 @@ export default function HomePage() {
                   onClick={() => {
                     setIsDropdownOpen(!isDropdownOpen);
                     setPeerType(PEER_TYPE.SEND);
-                    createAndJoinRoom();
                   }}
                 >
                   <Send size={18} />
@@ -162,7 +162,10 @@ export default function HomePage() {
                 whileHover={{ y: -2 }}
                 whileTap={{ scale: 0.98 }}
                 className="text-foreground flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border-[1.5px] border-white/8 bg-transparent px-7 py-3.25 font-sans text-[15px] font-semibold tracking-[0.04em] transition-colors duration-200 hover:border-white/35 hover:bg-white/4 sm:w-auto sm:justify-start"
-                onClick={() => setPeerType(PEER_TYPE.RECEIVE)}
+                onClick={() => {
+                  setPeerType(PEER_TYPE.RECEIVE);
+                  router.push("/enter/receive");
+                }}
               >
                 <Download size={16} />
                 Receive

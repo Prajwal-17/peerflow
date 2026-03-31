@@ -32,6 +32,7 @@ app.get(
 
     return {
       onMessage(event, ws) {
+        console.log("data", JSON.parse(event.data.toString()));
         const data = JSON.parse(event.data.toString());
         const { type, roomId, localPeerId, ...rest } = data;
 
@@ -84,6 +85,8 @@ app.get(
               type: SOCKET_EVENT.PEER_JOINED,
               remotePeerId: localPeerId,
             });
+
+            console.log("createRoom", rooms);
             break;
           }
 

@@ -1,8 +1,8 @@
-import { usePeerStore } from "@/store/peerStore";
 import { SOCKET_EVENT } from "@repo/types";
 import ShortUniqueId from "short-unique-id";
 import { config } from "../constants";
 import { useFileTransferStore } from "../store/fileTransferStore";
+import { usePeerStore } from "../store/peerStore";
 
 const { randomUUID } = new ShortUniqueId();
 
@@ -52,6 +52,42 @@ export class PeerSession {
     this.socket = ws;
   }
 
+  connect(
+    signalingUrl: string,
+    onMessage: (data: MessageEvent) => void,
+    onOpen?: () => void,
+    onClose?: () => void,
+  ) {
+    if (
+      this.socket &&
+      (this.socket.readyState === WebSocket.OPEN ||
+        this.socket.readyState === WebSocket.CONNECTING)
+    ) {
+      return;
+    }
+
+    const ws = new WebSocket(signalingUrl);
+
+    ws.onopen = () => {
+      this.setSocket(ws);
+      usePeerStore.getState().setIsConnected(true);
+      onOpen?.();
+    };
+
+    ws.onmessage = onMessage;
+
+    ws.onclose = () => {
+      this.setSocket(null);
+      usePeerStore.getState().setIsConnected(false);
+      onClose?.();
+    };
+  }
+
+  disconnect() {
+    this.socket?.close();
+    this.setSocket(null);
+  }
+
   setfileHandler(handler: FileSystemFileHandle | null) {
     this.fileHandler = handler;
   }
@@ -69,6 +105,18 @@ export class PeerSession {
     this.socket?.send(
       JSON.stringify({
         type: SOCKET_EVENT.CREATE_ROOM,
+        localPeerId: this.localPeerId,
+      }),
+    );
+  }
+
+  joinRoom() {
+    usePeerStore.getState().setLocalPeerId(this.localPeerId);
+    console.log(this.roomId, this.localPeerId, this.socket);
+    this.socket?.send(
+      JSON.stringify({
+        type: SOCKET_EVENT.JOIN_ROOM,
+        roomId: this.roomId,
         localPeerId: this.localPeerId,
       }),
     );

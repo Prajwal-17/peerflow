@@ -1,37 +1,29 @@
+import { usePeerStore } from "@/store/peerStore";
 import { SOCKET_EVENT } from "@repo/types";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { peerSession } from "../lib/peerSession";
-import { usePeerStore } from "../store/peerStore";
 
+/**
+ * Initialises the signalling WebSocket exactly once for the entire app session.
+ * Safe to call from any page — peerSession.connect() is a no-op when a
+ * connection is already open or connecting, so multiple calls are harmless.
+ *
+ * Mount this hook at the layout level (or at minimum on every top-level page)
+ * so the connection is available wherever it is needed.
+ */
 const useSignalling = () => {
-  const [isConnected, setIsConnected] = useState<boolean>(false);
   const router = useRouter();
 
   useEffect(() => {
-    const ws = new WebSocket(
-      process.env.NEXT_PUBLIC_SIGNALLING_SERVER as string,
-    );
-    ws.onopen = () => {
-      peerSession.setSocket(ws);
-      setIsConnected(true);
-    };
-    ws.onmessage = (event) => {
+    const handleMessage = (event: MessageEvent) => {
       const data = JSON.parse(event.data);
 
       switch (data.type) {
         case SOCKET_EVENT.ROOM_JOINED: {
           usePeerStore.getState().setRoomId(data.roomId);
           usePeerStore.getState().setIsRoomJoined(true);
-          router.push(`${usePeerStore.getState().roomId}/send`);
-
-          // usePeerStore.getState().setRemotePeerId(data.remotePeerId);
-          // peerSession.setRemotePeerId(data.remotePeerId);
-          // peerSession.createRTCPeerConn(peerSession.localPeerId);
-          // peerSession.listenOnDataChannel(() => {
-          //   peerSession.listenOnCtrlChannel();
-          //   peerSession.listenOnTransferChannel();
-          // });
+          router.push(`${data.roomId}/send`);
           break;
         }
 
@@ -58,15 +50,15 @@ const useSignalling = () => {
           break;
       }
     };
-    ws.onclose = () => {
-      peerSession.setSocket(null);
-      setIsConnected(false);
-    };
 
-    return () => ws.close();
-  }, []);
+    peerSession.connect(
+      process.env.NEXT_PUBLIC_SIGNALLING_SERVER as string,
+      handleMessage,
+    );
 
-  return { isConnected };
+    // Never disconnect on unmount — the connection must survive page transitions.
+    // The server/browser will clean it up when the tab closes.
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 };
 
 export default useSignalling;

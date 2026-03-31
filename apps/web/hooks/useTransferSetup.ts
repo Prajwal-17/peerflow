@@ -45,28 +45,29 @@ export const useTransferSetup = (
     peerSession.createRoomAndJoin();
   };
 
-  const createAndJoinRoom = () => {
-    // if (usePeerStore.getState().isRoomJoined) return;
-    // optimistically set to true
-    // usePeerStore.getState().setIsRoomJoined(true);
-    // const currentRoomId = roomId || peerSession.roomId;
-    // Save it to the UI store so the user can see it
-    // if (!roomId) {
-    //   setRoomId(currentRoomId);
-    // }
-    // if (peerSession.socket?.readyState === WebSocket.OPEN) {
-    //   peerSession.socket?.send(
-    //     JSON.stringify({
-    //       type: SOCKET_EVENT.CREATE_ROOM,
-    //       roomId: currentRoomId,
-    //       localPeerId: peerSession.localPeerId,
-    //     }),
-    //   );
-    // }
-  };
+  // const createAndJoinRoom = () => {
+  //   // if (usePeerStore.getState().isRoomJoined) return;
+  //   // optimistically set to true
+  //   // usePeerStore.getState().setIsRoomJoined(true);
+  //   // const currentRoomId = roomId || peerSession.roomId;
+  //   // Save it to the UI store so the user can see it
+  //   // if (!roomId) {
+  //   //   setRoomId(currentRoomId);
+  //   // }
+  //   // if (peerSession.socket?.readyState === WebSocket.OPEN) {
+  //   //   peerSession.socket?.send(
+  //   //     JSON.stringify({
+  //   //       type: SOCKET_EVENT.CREATE_ROOM,
+  //   //       roomId: currentRoomId,
+  //   //       localPeerId: peerSession.localPeerId,
+  //   //     }),
+  //   //   );
+  //   // }
+  // };
 
   useEffect(() => {
     if (selectedFiles.length > 0) {
+      console.log(selectedFiles);
       // create & join a room
       // peerSession.
       //
@@ -85,7 +86,7 @@ export const useTransferSetup = (
   const handleChooseSavedItems = () => {};
 
   return {
-    createAndJoinRoom,
+    // createAndJoinRoom,
     handleFilesSelected,
     handleChooseFromDevice,
     handleChooseSavedItems,
