@@ -3,24 +3,29 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 
 type SelectedFile = {
-  
-}
+  id: number;
+  name: string;
+  type: string;
+  size: number;
+  lastModified: number;
+  file: File;
+};
 
 type PeerStore = {
   roomId: string;
-  isRoomJoined: boolean;
-  isConnected: boolean;
-  localPeerId: string;
-  remotePeerId: string;
-  peerType: PeerType | undefined;
-  selectedFiles: File[];
   setRoomId: (id: string) => void;
+  isRoomJoined: boolean;
   setIsRoomJoined: (value: boolean) => void;
+  isConnected: boolean;
   setIsConnected: (value: boolean) => void;
+  localPeerId: string;
   setLocalPeerId: (id: string) => void;
+  remotePeerId: string;
   setRemotePeerId: (id: string) => void;
+  peerType: PeerType | undefined;
   setPeerType: (type: PeerType) => void;
-  setSelectedFiles: (files: File[] | []) => void;
+  selectedFiles: SelectedFile[];
+  setSelectedFiles: (files: SelectedFile[] | []) => void;
 };
 
 export const usePeerStore = create<PeerStore>()(

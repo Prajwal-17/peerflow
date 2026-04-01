@@ -8,9 +8,20 @@ type IncomingFile = {
   size: number;
 };
 
+type FileTransferItem = {
+  id: number;
+  name: string;
+  type: string;
+  size: number;
+  lastModified: number;
+  file: File;
+};
+
 type FileTransferStore = {
   isIncomingFile: boolean;
   setIsIncomingFile: (value: boolean) => void;
+  showIncomingBanner: boolean;
+  setShowIncomingBanner: (value: boolean) => void;
   pendingFile: IncomingFile | null;
   setPendingFile: (file: IncomingFile | null) => void;
   // writableStream: FileSystemWritableFileStream | null;
@@ -18,6 +29,8 @@ type FileTransferStore = {
   // ctrlChannel: RTCDataChannel | null;
   // setCtrlChannel: (channel: RTCDataChannel) => void;
   resetIncomingFile: () => void;
+  fileTransferItems: FileTransferItem[];
+  setFileTransferItems: (files: FileTransferItem[]) => void;
 };
 
 export const useFileTransferStore = create<FileTransferStore>()(
@@ -33,10 +46,22 @@ export const useFileTransferStore = create<FileTransferStore>()(
           "setIsIncomingFile",
         ),
 
+      showIncomingBanner: false,
+      setShowIncomingBanner: (value) =>
+        set(() => ({
+          showIncomingBanner: value,
+        })),
+
       resetIncomingFile: () =>
         set({
           isIncomingFile: false,
         }),
+
+      fileTransferItems: [],
+      setFileTransferItems: (files) =>
+        set(() => ({
+          fileTransferItems: files,
+        })),
 
       pendingFile: null,
       setPendingFile: (file) =>

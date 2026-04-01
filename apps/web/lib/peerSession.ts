@@ -159,21 +159,33 @@ export class PeerSession {
     const ctrl = this.pc.createDataChannel("control", {
       ordered: true,
     });
-    ctrl.onopen = () => {
-      console.log("Control channel opened");
-    };
     this.ctrlChannel = ctrl;
+
+    const selectedFiles = usePeerStore.getState().selectedFiles;
+
+    /**
+     * This is the main trigger that ctrl channel is opened
+     */
+    this.ctrlChannel.onopen = () => {
+      this.ctrlChannel?.send(
+        JSON.stringify({
+          type: "file-meta",
+          data: selectedFiles,
+        }),
+      );
+    };
   }
 
   createTransferChannel() {
     const tc = this.pc.createDataChannel("transfer", {
       ordered: true,
     });
+    this.transferChannel = tc;
+    this.transferChannel.bufferedAmountLowThreshold = 64 * 1024;
+
     tc.onopen = () => {
       console.log("data channel opened");
     };
-    this.transferChannel = tc;
-    this.transferChannel.bufferedAmountLowThreshold = 64 * 1024;
   }
 
   async createAndSendOffer() {
@@ -203,7 +215,7 @@ export class PeerSession {
       await this.pc.setRemoteDescription(offer);
       this.remoteDescriptionSet = true;
 
-      // Drain queued candidates
+      // drain queued candidates
       for (const candidate of this.pendingCandidates!) {
         await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
       }
@@ -211,6 +223,8 @@ export class PeerSession {
 
       const answer = await this.pc.createAnswer();
       await this.pc.setLocalDescription(answer);
+
+      this.listenOnDataChannel();
 
       this.socket?.send(
         JSON.stringify({
@@ -243,10 +257,12 @@ export class PeerSession {
       const channel = event.channel;
       if (channel.label === "control") {
         this.ctrlChannel = channel;
+        this.ctrlChannel.onmessage = this.listenOnCtrlChannel;
         received.control = true;
       }
       if (channel.label === "transfer") {
         this.transferChannel = channel;
+        this.transferChannel.onmessage = this.listenOnTransferChannel;
         received.transfer = true;
       }
       if (received.control && received.transfer) {
@@ -255,50 +271,31 @@ export class PeerSession {
     };
   }
 
-  listenOnCtrlChannel() {
-    const channel = this.ctrlChannel;
-    if (!channel) {
-      console.error("Control Channel does not exist");
-      return;
+  listenOnCtrlChannel = async (event: MessageEvent) => {
+    const parsed = JSON.parse(event.data);
+    if (parsed.type === "file-meta") {
+      useFileTransferStore.getState().setFileTransferItems(parsed.data);
     }
 
-    channel.onmessage = async (event) => {
-      const parsed = JSON.parse(event.data);
-      if (parsed.type === "file-meta") {
-        useFileTransferStore.setState({
-          isIncomingFile: true,
-          pendingFile: parsed,
-        });
+    if (parsed.type === "eof") {
+      if (this.writableStream) {
+        await this.writableStream.close();
+        this.setWritableStream(null);
+        this.setfileHandler(null);
+        useFileTransferStore.getState().setIsIncomingFile(false);
       }
+    }
+  };
 
-      if (parsed.type === "eof") {
-        if (this.writableStream) {
-          await this.writableStream.close();
-          this.setWritableStream(null);
-          this.setfileHandler(null);
-          useFileTransferStore.getState().setIsIncomingFile(false);
-        }
-      }
-    };
-  }
-
-  listenOnTransferChannel() {
-    const channel = this.transferChannel;
-    if (!channel) {
-      console.error("Transfer Channel does not exist");
+  listenOnTransferChannel = async (event: MessageEvent) => {
+    if (!this.writableStream) {
+      console.log("Error no writable stream");
       return;
     }
-
-    channel.onmessage = async (event) => {
-      if (!this.writableStream) {
-        console.log("Error no writable stream");
-        return;
-      }
-      // const writable = useFileTransferStore.getState().this.;
-      const chunk = new Uint8Array(event.data);
-      await this.writableStream.write(chunk);
-    };
-  }
+    // const writable = useFileTransferStore.getState().this.;
+    const chunk = new Uint8Array(event.data);
+    await this.writableStream.write(chunk);
+  };
 
   async sendFiles(selectedFiles: File[]) {
     for (const file of selectedFiles) {

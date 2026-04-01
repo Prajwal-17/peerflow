@@ -9,11 +9,6 @@ export const useTransferSetup = (
 ) => {
   const roomId = usePeerStore((state) => state.roomId);
   const isRoomJoined = usePeerStore((state) => state.isRoomJoined);
-
-  // const setRoomId = usePeerStore((state) => state.setRoomId);
-  // const peerType = usePeerStore((state) => state.peerType);
-  // const setPeerType = usePeerStore((state) => state.setPeerType);
-  const selectedFiles = usePeerStore((state) => state.selectedFiles);
   const setSelectedFiles = usePeerStore((state) => state.setSelectedFiles);
 
   useEffect(() => {
@@ -33,60 +28,30 @@ export const useTransferSetup = (
     fileInputRef.current?.click();
   };
 
-  const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFilesSelected = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const files = e.target.files;
     if (!files) return;
 
-    const filesArray = Array.from(files);
-    // console.log("files array", filesArray);
+    const filesArray = Array.from(files).map((file, idx) => ({
+      id: idx,
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      lastModified: file.lastModified,
+      file: file,
+    }));
+
     setSelectedFiles(filesArray);
 
     if (roomId && isRoomJoined) return;
     peerSession.createRoomAndJoin();
   };
 
-  // const createAndJoinRoom = () => {
-  //   // if (usePeerStore.getState().isRoomJoined) return;
-  //   // optimistically set to true
-  //   // usePeerStore.getState().setIsRoomJoined(true);
-  //   // const currentRoomId = roomId || peerSession.roomId;
-  //   // Save it to the UI store so the user can see it
-  //   // if (!roomId) {
-  //   //   setRoomId(currentRoomId);
-  //   // }
-  //   // if (peerSession.socket?.readyState === WebSocket.OPEN) {
-  //   //   peerSession.socket?.send(
-  //   //     JSON.stringify({
-  //   //       type: SOCKET_EVENT.CREATE_ROOM,
-  //   //       roomId: currentRoomId,
-  //   //       localPeerId: peerSession.localPeerId,
-  //   //     }),
-  //   //   );
-  //   // }
-  // };
-
-  useEffect(() => {
-    if (selectedFiles.length > 0) {
-      console.log(selectedFiles);
-      // create & join a room
-      // peerSession.
-      //
-      //
-      // peerSession.sendFiles(selectedFiles);
-    }
-  }, [selectedFiles]);
-
-  // Only update peerSession if roomId is actually set in the store
-  // useEffect(() => {
-  //   if (roomId) {
-  //     peerSession.setRoomId(roomId);
-  //   }
-  // }, [roomId]);
-
   const handleChooseSavedItems = () => {};
 
   return {
-    // createAndJoinRoom,
     handleFilesSelected,
     handleChooseFromDevice,
     handleChooseSavedItems,
