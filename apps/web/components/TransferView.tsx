@@ -1,6 +1,8 @@
 "use client";
 
+import { peerSession } from "@/lib/peerSession";
 import { useFileTransferStore } from "@/store/fileTransferStore";
+import { CTRL_CH_EVENT } from "@repo/types";
 import {
   Check,
   CheckCircle2,
@@ -13,32 +15,56 @@ import {
   XCircle,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import QRCode from "react-qr-code";
 
 export default function TransferView({ roomId }: { roomId: string }) {
   const [dummyProgress] = useState(68);
   const [showQr, setShowQr] = useState(false);
   const [inviteLink, setInviteLink] = useState("");
+
   const showIncomingBanner = useFileTransferStore(
     (state) => state.showIncomingBanner,
   );
   const setShowIncomingBanner = useFileTransferStore(
     (state) => state.setShowIncomingBanner,
   );
-
   const fileTransferItems = useFileTransferStore(
     (state) => state.fileTransferItems,
   );
+  const currFile = useFileTransferStore((state) => state.currFile);
 
-  useEffect(() => {
-    console.log("items", fileTransferItems);
-  }, [fileTransferItems]);
+  const handleAccept = async () => {
+    const dirHandler = await window.showDirectoryPicker({
+      mode: "readwrite",
+      startIn: "downloads",
+    });
+
+    peerSession.setDirHandler(dirHandler);
+
+    if (!currFile) {
+      console.log("no curr file");
+      return;
+    }
+
+    const fileHandler = await dirHandler.getFileHandle(currFile?.name, {
+      create: true,
+    });
+    peerSession.setfileHandler(fileHandler);
+
+    const writable = await fileHandler.createWritable();
+    peerSession.setWritableStream(writable);
+
+    peerSession.ctrlChannel?.send(
+      JSON.stringify({
+        type: CTRL_CH_EVENT.TRANSFER_START,
+      }),
+    );
+  };
 
   return (
     <>
       <main className="flex flex-1 flex-col items-center px-6 pt-6 pb-6 sm:px-8 sm:pt-10 sm:pb-8">
-        {/* Room Info */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -62,7 +88,6 @@ export default function TransferView({ roomId }: { roomId: string }) {
           </button>
         </motion.div>
 
-        {/* Peers */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -124,7 +149,10 @@ export default function TransferView({ roomId }: { roomId: string }) {
                     <X size={16} className="text-red-400" /> Reject
                   </button>
                   <button
-                    onClick={() => setShowIncomingBanner(false)}
+                    onClick={() => {
+                      setShowIncomingBanner(false);
+                      handleAccept();
+                    }}
                     className="bg-accent text-accent-foreground flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2 text-[13px] font-bold tracking-wide shadow-[0_0_15px_rgba(0,229,160,0.2)] transition-all hover:shadow-[0_0_25px_rgba(0,229,160,0.4)] sm:flex-none"
                   >
                     <Check size={16} /> Accept
@@ -135,7 +163,6 @@ export default function TransferView({ roomId }: { roomId: string }) {
           )}
         </AnimatePresence>
 
-        {/* transfer list */}
         <div className="relative mb-6 w-full max-w-3xl rounded-xl border border-white/10 bg-[#111214]/50 p-4 shadow-2xl backdrop-blur-md sm:p-5">
           {fileTransferItems.map((f, idx) => (
             <div
@@ -157,7 +184,6 @@ export default function TransferView({ roomId }: { roomId: string }) {
                     </span>
                   </div>
 
-                  {/* Progress Bar Container */}
                   <div className="mb-2 h-1 w-full overflow-hidden rounded-full bg-white/10">
                     <motion.div
                       initial={{ width: 0 }}
@@ -167,7 +193,6 @@ export default function TransferView({ roomId }: { roomId: string }) {
                     />
                   </div>
 
-                  {/* Stats */}
                   <div className="text-muted flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-[10.5px] leading-none">
                     <span>4.2 MB / 5.0 MB</span>
                     <span>1.2 MB/s</span>
@@ -185,7 +210,6 @@ export default function TransferView({ roomId }: { roomId: string }) {
           ))}
         </div>
 
-        {/* Summary */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -212,7 +236,6 @@ export default function TransferView({ roomId }: { roomId: string }) {
         </motion.div>
       </main>
 
-      {/* QR dialog */}
       <AnimatePresence>
         {showQr && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

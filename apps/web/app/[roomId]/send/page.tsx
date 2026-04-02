@@ -1,6 +1,6 @@
 "use client";
 
-import { usePeerStore } from "@/store/peerStore";
+import { useFileTransferStore } from "@/store/fileTransferStore";
 import {
   CheckCircle2,
   Copy,
@@ -24,7 +24,9 @@ export default function SendPage() {
   const [showQr, setShowQr] = useState(false);
   const [inviteLink, setInviteLink] = useState("");
 
-  const selectedFiles = usePeerStore((state) => state.selectedFiles);
+  const fileTransferItems = useFileTransferStore(
+    (state) => state.fileTransferItems,
+  );
 
   useEffect(() => {
     setInviteLink(`${window.location.origin}/${roomId || "25232"}`);
@@ -46,7 +48,6 @@ export default function SendPage() {
         <div className="pointer-events-none fixed -bottom-25 -left-25 z-0 h-125 w-125 rounded-full bg-[radial-gradient(circle,rgba(0,100,255,0.04)_0%,transparent_70%)]" />
 
         <div className="z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col">
-          {/* nav */}
           <nav className="flex items-center justify-between border-b border-white/8 px-6 py-4 sm:px-8 sm:py-5">
             <div className="flex items-center gap-2.5">
               <div className="border-accent text-accent flex h-9 w-9 items-center justify-center rounded-lg border-[1.5px] shadow-[0_0_12px_rgba(0,229,160,0.3)]">
@@ -64,7 +65,6 @@ export default function SendPage() {
           </nav>
 
           <main className="flex flex-1 flex-col items-center px-6 pt-6 pb-6 sm:px-8 sm:pt-10 sm:pb-8">
-            {/* Room Info */}
             <div className="text-muted mb-6 flex flex-col items-center gap-4 font-mono text-sm sm:flex-row sm:gap-6">
               <div className="flex items-center gap-3">
                 <span className="text-white">
@@ -85,7 +85,6 @@ export default function SendPage() {
               </button>
             </div>
 
-            {/* Peers */}
             <div className="mb-8 flex w-full max-w-2xl items-center justify-center gap-8 sm:gap-16">
               <div className="flex flex-col items-center gap-2">
                 <div className="flex items-center gap-2 text-lg font-medium text-white">
@@ -112,10 +111,8 @@ export default function SendPage() {
               </div>
             </div>
 
-            {/* Transfer List Container */}
             <div className="relative mb-6 w-full max-w-3xl rounded-xl border border-white/10 bg-[#111214]/50 p-4 shadow-2xl backdrop-blur-md sm:p-5">
-              {/* File Item */}
-              {selectedFiles.map((f, idx) => (
+              {fileTransferItems.map((f, idx) => (
                 <div
                   key={idx}
                   className="group relative rounded-lg border border-white/10 bg-black/40 p-3 transition-colors hover:border-white/20"
@@ -135,7 +132,6 @@ export default function SendPage() {
                         </span>
                       </div>
 
-                      {/* Progress Bar Container */}
                       <div className="mb-2 h-1 w-full overflow-hidden rounded-full bg-white/10">
                         <motion.div
                           initial={{ width: 0 }}
@@ -145,7 +141,6 @@ export default function SendPage() {
                         />
                       </div>
 
-                      {/* Stats */}
                       <div className="text-muted flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-[10.5px] leading-none">
                         <span>4.2 MB / 5.0 MB</span>
                         <span>1.2 MB/s</span>
@@ -163,7 +158,6 @@ export default function SendPage() {
               ))}
             </div>
 
-            {/* Summary Information */}
             <div className="flex flex-col items-center gap-4">
               <div className="flex items-center gap-6 text-sm sm:gap-12">
                 <div className="flex flex-col items-center gap-1">
@@ -187,7 +181,6 @@ export default function SendPage() {
             </div>
           </main>
 
-          {/* footer */}
           <footer className="mt-auto flex flex-col items-center justify-center gap-3 border-t border-white/8 p-5 text-center sm:flex-row sm:px-8 sm:py-5 sm:text-left">
             <div className="font-mono text-[11px] tracking-[0.06em] text-white/20">
               Built by <span className="text-accent">Prajwal-17</span>

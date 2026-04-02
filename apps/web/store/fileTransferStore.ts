@@ -1,34 +1,12 @@
+import { FileTransferItem } from "@repo/types";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 
-type IncomingFile = {
-  type: string;
-  name: string;
-  fileType: string;
-  size: number;
-};
-
-type FileTransferItem = {
-  id: number;
-  name: string;
-  type: string;
-  size: number;
-  lastModified: number;
-  file: File;
-};
-
 type FileTransferStore = {
-  isIncomingFile: boolean;
-  setIsIncomingFile: (value: boolean) => void;
+  currFile: FileTransferItem | null;
+  setCurrFile: (file: FileTransferItem | null) => void;
   showIncomingBanner: boolean;
   setShowIncomingBanner: (value: boolean) => void;
-  pendingFile: IncomingFile | null;
-  setPendingFile: (file: IncomingFile | null) => void;
-  // writableStream: FileSystemWritableFileStream | null;
-  // setWritableStream: (stream: FileSystemWritableFileStream | null) => void;
-  // ctrlChannel: RTCDataChannel | null;
-  // setCtrlChannel: (channel: RTCDataChannel) => void;
-  resetIncomingFile: () => void;
   fileTransferItems: FileTransferItem[];
   setFileTransferItems: (files: FileTransferItem[]) => void;
 };
@@ -36,44 +14,36 @@ type FileTransferStore = {
 export const useFileTransferStore = create<FileTransferStore>()(
   devtools(
     (set) => ({
-      isIncomingFile: false,
-      setIsIncomingFile: (value) =>
+      currFile: null,
+      setCurrFile: (file) =>
         set(
           () => ({
-            isIncomingFile: value,
+            currFile: file,
           }),
           false,
-          "setIsIncomingFile",
+          "setCurrFile",
         ),
 
       showIncomingBanner: false,
       setShowIncomingBanner: (value) =>
-        set(() => ({
-          showIncomingBanner: value,
-        })),
-
-      resetIncomingFile: () =>
-        set({
-          isIncomingFile: false,
-        }),
+        set(
+          () => ({
+            showIncomingBanner: value,
+          }),
+          false,
+          "setShowIncomingBanner",
+        ),
 
       fileTransferItems: [],
       setFileTransferItems: (files) =>
-        set(() => ({
-          fileTransferItems: files,
-        })),
-
-      pendingFile: null,
-      setPendingFile: (file) =>
         set(
           () => ({
-            pendingFile: file,
+            fileTransferItems: files,
           }),
           false,
-          "setPendingFile",
+          "setFileTransferItems",
         ),
     }),
-
     {
       name: "FileTransferStore",
       enabled: true,

@@ -1,5 +1,7 @@
 import { peerSession } from "@/lib/peerSession";
+import { useFileTransferStore } from "@/store/fileTransferStore";
 import { usePeerStore } from "@/store/peerStore";
+import { FileTransferItem } from "@repo/types";
 import { useEffect } from "react";
 
 export const useTransferSetup = (
@@ -9,7 +11,9 @@ export const useTransferSetup = (
 ) => {
   const roomId = usePeerStore((state) => state.roomId);
   const isRoomJoined = usePeerStore((state) => state.isRoomJoined);
-  const setSelectedFiles = usePeerStore((state) => state.setSelectedFiles);
+  const setFileTransferItems = useFileTransferStore(
+    (state) => state.setFileTransferItems,
+  );
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -34,16 +38,19 @@ export const useTransferSetup = (
     const files = e.target.files;
     if (!files) return;
 
-    const filesArray = Array.from(files).map((file, idx) => ({
-      id: idx,
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      lastModified: file.lastModified,
-      file: file,
-    }));
+    const filesArray: FileTransferItem[] = Array.from(files).map(
+      (file, idx) => ({
+        id: idx,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        lastModified: file.lastModified,
+        file: file,
+        status: "pending",
+      }),
+    );
 
-    setSelectedFiles(filesArray);
+    setFileTransferItems(filesArray);
 
     if (roomId && isRoomJoined) return;
     peerSession.createRoomAndJoin();

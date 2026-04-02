@@ -2,15 +2,6 @@ import { PeerType } from "@repo/types";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 
-type SelectedFile = {
-  id: number;
-  name: string;
-  type: string;
-  size: number;
-  lastModified: number;
-  file: File;
-};
-
 type PeerStore = {
   roomId: string;
   setRoomId: (id: string) => void;
@@ -24,8 +15,6 @@ type PeerStore = {
   setRemotePeerId: (id: string) => void;
   peerType: PeerType | undefined;
   setPeerType: (type: PeerType) => void;
-  selectedFiles: SelectedFile[];
-  setSelectedFiles: (files: SelectedFile[] | []) => void;
 };
 
 export const usePeerStore = create<PeerStore>()(
@@ -47,11 +36,5 @@ export const usePeerStore = create<PeerStore>()(
 
     peerType: undefined,
     setPeerType: (type) => set({ peerType: type }),
-
-    selectedFiles: [],
-    setSelectedFiles: (files) =>
-      set(() => ({
-        selectedFiles: files,
-      })),
   })),
 );

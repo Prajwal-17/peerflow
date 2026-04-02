@@ -32,7 +32,6 @@ app.get(
 
     return {
       onMessage(event, ws) {
-        console.log("data", JSON.parse(event.data.toString()));
         const data = JSON.parse(event.data.toString());
         const { type, roomId, localPeerId, ...rest } = data;
 
@@ -56,7 +55,6 @@ app.get(
                 msg: "Successfully joined room",
               }),
             );
-            console.log("createRoom", rooms);
             break;
           }
 
@@ -88,7 +86,6 @@ app.get(
               remotePeerId: localPeerId,
             });
 
-            console.log("createRoom", rooms);
             break;
           }
 

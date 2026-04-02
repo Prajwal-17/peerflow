@@ -25,29 +25,27 @@ export const SOCKET_EVENT = {
 
 export type SocketEvent = (typeof SOCKET_EVENT)[keyof typeof SOCKET_EVENT];
 
-export type BaseMessage = {
-  event: SocketEvent;
-  localPeerId: string;
+export const CTRL_CH_EVENT = {
+  // sender -> receiver
+  FILES_META: "files:metadata", // send all files metadata
+  CURR_FILE_META: "files:current", // the file which is currently transferring
+  ALL_DONE: "files:all-done",
+  EOF: "eof", // end of file
+
+  // receiver -> sender
+  READY: "ready", // connection & data channel are created -> send all files meta
+  REQ_CURR_FILE_META: "transfer:files:current",
+  TRANSFER_START: "transfer:start",
 };
 
-export type OfferMessage = BaseMessage & {
-  offer: RTCSessionDescription;
+export type CtrlChEvent = (typeof CTRL_CH_EVENT)[keyof typeof CTRL_CH_EVENT];
+
+export type FileTransferItem = {
+  id: number;
+  name: string;
+  type: string;
+  size: number;
+  lastModified: number;
+  file: File;
+  status: "success" | "failed" | "pending";
 };
-
-export type AnswerMessage = BaseMessage & {
-  answer: RTCSessionDescription;
-};
-
-export type IceCandidateMessage = BaseMessage & {
-  offer: RTCIceCandidate;
-};
-
-// export type RoomJoinedMessage = BaseMessage & {
-//   remotePeerId: string;
-//   msg: string;
-// };
-
-// export type UserJoinedMessage = BaseMessage & {
-//   remotePeerId: string;
-//   msg: string;
-// };

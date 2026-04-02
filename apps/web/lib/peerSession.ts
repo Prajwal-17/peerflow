@@ -1,4 +1,4 @@
-import { SOCKET_EVENT } from "@repo/types";
+import { CTRL_CH_EVENT, FileTransferItem, SOCKET_EVENT } from "@repo/types";
 import ShortUniqueId from "short-unique-id";
 import { config } from "../constants";
 import { useFileTransferStore } from "../store/fileTransferStore";
@@ -19,11 +19,11 @@ export class PeerSession {
   ctrlChannel: RTCDataChannel | null = null;
   transferChannel: RTCDataChannel | null = null;
 
+  nextFileIndex = 0;
+  currFileMeta: FileTransferItem | null = null;
   dirHandler: FileSystemDirectoryHandle | null = null;
   fileHandler: FileSystemFileHandle | null = null;
   writableStream: FileSystemWritableFileStream | null = null;
-  // file handle
-  // writable stream
 
   get pc(): RTCPeerConnection {
     if (!this._pc) {
@@ -32,9 +32,9 @@ export class PeerSession {
     return this._pc;
   }
 
-  // setLocalPeerId(id: string) {
-  //   this.localPeerId = id;
-  // }
+  setLocalPeerId(id: string) {
+    this.localPeerId = id;
+  }
 
   setRemotePeerId(id: string) {
     this.remotePeerId = id;
@@ -43,8 +43,6 @@ export class PeerSession {
   set pc(value: RTCPeerConnection) {
     this._pc = value;
   }
-
-  /// -------
 
   setRoomId(id: string) {
     this.roomId = id;
@@ -90,6 +88,10 @@ export class PeerSession {
     this.setSocket(null);
   }
 
+  setCurrFileMeta(file: FileTransferItem | null) {
+    this.currFileMeta = file;
+  }
+
   setfileHandler(handler: FileSystemFileHandle | null) {
     this.fileHandler = handler;
   }
@@ -114,7 +116,6 @@ export class PeerSession {
 
   joinRoom() {
     usePeerStore.getState().setLocalPeerId(this.localPeerId);
-    console.log(this.roomId, this.localPeerId, this.socket);
     this.socket?.send(
       JSON.stringify({
         type: SOCKET_EVENT.JOIN_ROOM,
@@ -134,7 +135,6 @@ export class PeerSession {
 
     pc.onicecandidate = async (event) => {
       if (event.candidate) {
-        console.log("creat rtc", this.roomId, this.localPeerId);
         this.socket?.send(
           JSON.stringify({
             type: SOCKET_EVENT.ICE_CANDIDATE,
@@ -160,20 +160,7 @@ export class PeerSession {
       ordered: true,
     });
     this.ctrlChannel = ctrl;
-
-    const selectedFiles = usePeerStore.getState().selectedFiles;
-
-    /**
-     * This is the main trigger that ctrl channel is opened
-     */
-    this.ctrlChannel.onopen = () => {
-      this.ctrlChannel?.send(
-        JSON.stringify({
-          type: "file-meta",
-          data: selectedFiles,
-        }),
-      );
-    };
+    this.ctrlChannel.onmessage = this.listenOnCtrlChannel;
   }
 
   createTransferChannel() {
@@ -181,11 +168,8 @@ export class PeerSession {
       ordered: true,
     });
     this.transferChannel = tc;
+    this.transferChannel.onmessage = this.listenOnTransferChannel;
     this.transferChannel.bufferedAmountLowThreshold = 64 * 1024;
-
-    tc.onopen = () => {
-      console.log("data channel opened");
-    };
   }
 
   async createAndSendOffer() {
@@ -258,6 +242,13 @@ export class PeerSession {
       if (channel.label === "control") {
         this.ctrlChannel = channel;
         this.ctrlChannel.onmessage = this.listenOnCtrlChannel;
+        this.ctrlChannel.onopen = () => {
+          this.ctrlChannel?.send(
+            JSON.stringify({
+              type: CTRL_CH_EVENT.READY,
+            }),
+          );
+        };
         received.control = true;
       }
       if (channel.label === "transfer") {
@@ -273,16 +264,130 @@ export class PeerSession {
 
   listenOnCtrlChannel = async (event: MessageEvent) => {
     const parsed = JSON.parse(event.data);
-    if (parsed.type === "file-meta") {
-      useFileTransferStore.getState().setFileTransferItems(parsed.data);
-    }
 
-    if (parsed.type === "eof") {
-      if (this.writableStream) {
-        await this.writableStream.close();
-        this.setWritableStream(null);
-        this.setfileHandler(null);
-        useFileTransferStore.getState().setIsIncomingFile(false);
+    switch (parsed.type) {
+      case CTRL_CH_EVENT.READY: {
+        const fileTransferItems =
+          useFileTransferStore.getState().fileTransferItems;
+        this.nextFileIndex = 0;
+        this.ctrlChannel?.send(
+          JSON.stringify({
+            type: CTRL_CH_EVENT.FILES_META,
+            data: fileTransferItems,
+          }),
+        );
+
+        break;
+      }
+      case CTRL_CH_EVENT.FILES_META: {
+        useFileTransferStore.getState().setFileTransferItems(parsed.data);
+        this.ctrlChannel?.send(
+          JSON.stringify({
+            type: CTRL_CH_EVENT.REQ_CURR_FILE_META,
+          }),
+        );
+        break;
+      }
+
+      case CTRL_CH_EVENT.REQ_CURR_FILE_META: {
+        const fileTransferItems =
+          useFileTransferStore.getState().fileTransferItems;
+
+        const nextFile = fileTransferItems[this.nextFileIndex];
+        this.nextFileIndex += 1;
+
+        if (!nextFile) {
+          this.ctrlChannel?.send(
+            JSON.stringify({
+              type: CTRL_CH_EVENT.ALL_DONE,
+            }),
+          );
+          return;
+        }
+
+        this.setCurrFileMeta(nextFile);
+        this.ctrlChannel?.send(
+          JSON.stringify({
+            type: CTRL_CH_EVENT.CURR_FILE_META,
+            data: this.currFileMeta,
+          }),
+        );
+
+        break;
+      }
+
+      case CTRL_CH_EVENT.CURR_FILE_META: {
+        this.setCurrFileMeta(parsed.data);
+        useFileTransferStore.getState().setCurrFile(parsed.data);
+
+        if (!this.dirHandler) {
+          useFileTransferStore.getState().setShowIncomingBanner(true);
+          break;
+        }
+
+        const fileHandler = await this.dirHandler?.getFileHandle(
+          parsed.data.name,
+          {
+            create: true,
+          },
+        );
+        this.setfileHandler(fileHandler ?? null);
+
+        const writable = await fileHandler?.createWritable();
+        peerSession.setWritableStream(writable ?? null);
+
+        peerSession.ctrlChannel?.send(
+          JSON.stringify({
+            type: CTRL_CH_EVENT.TRANSFER_START,
+          }),
+        );
+        break;
+      }
+
+      case CTRL_CH_EVENT.TRANSFER_START: {
+        let offset = 0;
+        const chunkSize = 16 * 1024;
+        const fileItem = this.currFileMeta;
+
+        if (!fileItem) {
+          return;
+        }
+
+        while (offset < fileItem.size) {
+          const chunk = fileItem.file.slice(offset, offset + chunkSize);
+          const buffer = await chunk.arrayBuffer();
+          this.transferChannel?.send(buffer);
+          offset += chunkSize;
+        }
+
+        const checkBufferAndSendEOF = async () => {
+          if (this.transferChannel?.bufferedAmount === 0) {
+            this.ctrlChannel?.send(
+              JSON.stringify({
+                type: "eof",
+              }),
+            );
+          } else {
+            setTimeout(checkBufferAndSendEOF, 50);
+          }
+        };
+        await checkBufferAndSendEOF();
+
+        break;
+      }
+
+      case CTRL_CH_EVENT.EOF: {
+        if (this.writableStream) {
+          await this.writableStream.close();
+          this.setWritableStream(null);
+          this.setfileHandler(null);
+        }
+        this.ctrlChannel?.send(
+          JSON.stringify({
+            type: CTRL_CH_EVENT.REQ_CURR_FILE_META,
+          }),
+        );
+        break;
       }
     }
   };
@@ -292,71 +397,9 @@ export class PeerSession {
       console.log("Error no writable stream");
       return;
     }
-    // const writable = useFileTransferStore.getState().this.;
     const chunk = new Uint8Array(event.data);
     await this.writableStream.write(chunk);
   };
-
-  async sendFiles(selectedFiles: File[]) {
-    for (const file of selectedFiles) {
-      const metadata = JSON.stringify({
-        type: "file-meta",
-        name: file.name,
-        fileType: file.type,
-        size: file.size,
-      });
-      this.ctrlChannel?.send(metadata);
-
-      if (!this.ctrlChannel) {
-        console.error(
-          "Data Channel Reference is NULL. Did you call createDataChannel yet?",
-        );
-        return;
-      }
-
-      const waitForReady = (): Promise<void> => {
-        return new Promise((resolve) => {
-          if (!this.ctrlChannel) return;
-          this.ctrlChannel.addEventListener(
-            "message",
-            (event) => {
-              const message = JSON.parse(event.data);
-              if (message.type === "ready") {
-                resolve();
-              }
-            },
-            { once: true },
-          );
-        });
-      };
-      await waitForReady();
-
-      let offset = 0;
-      const chunkSize = 16 * 1024;
-
-      while (offset < file.size) {
-        const chunk = file.slice(offset, offset + chunkSize);
-        const buffer = await chunk.arrayBuffer();
-        this.transferChannel?.send(buffer);
-        offset += chunkSize;
-      }
-
-      const checkBufferAndSendEOF = async () => {
-        if (this.transferChannel?.bufferedAmount === 0) {
-          this.ctrlChannel?.send(
-            JSON.stringify({
-              type: "eof",
-            }),
-          );
-          useFileTransferStore.getState().setPendingFile(null);
-        } else {
-          setTimeout(checkBufferAndSendEOF, 50);
-        }
-      };
-      await checkBufferAndSendEOF();
-    }
-  }
-  // ---
 }
 
 export const peerSession = new PeerSession();
