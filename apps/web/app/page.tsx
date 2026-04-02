@@ -1,26 +1,28 @@
 "use client";
 
 import { featurePills, steps } from "@/constants";
+import useSignalling from "@/hooks/useSignalling";
+import { useTransferSetup } from "@/hooks/useTransferSetup";
+import { usePeerStore } from "@/store/peerStore";
+import { PEER_TYPE } from "@repo/types";
 import { Archive, Cast, Download, MonitorUp, Send } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
 
 export default function HomePage() {
+  const router = useRouter();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const setPeerType = usePeerStore((state) => state.setPeerType);
 
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node)
-      ) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  useSignalling();
+  const {
+    handleFilesSelected,
+    handleChooseFromDevice,
+    handleChooseSavedItems,
+  } = useTransferSetup(dropdownRef, fileInputRef, setIsDropdownOpen);
 
   return (
     <>
@@ -98,7 +100,10 @@ export default function HomePage() {
                   whileHover={{ y: -2 }}
                   whileTap={{ scale: 0.98 }}
                   className="bg-accent flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border-none px-7 py-3.5 font-sans text-[15px] font-bold tracking-[0.04em] text-black shadow-[0_0_24px_rgba(0,229,160,0.3)] transition-all duration-150 hover:shadow-[0_4px_32px_rgba(0,229,160,0.3)] sm:w-auto sm:justify-start"
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  onClick={() => {
+                    setIsDropdownOpen(!isDropdownOpen);
+                    setPeerType(PEER_TYPE.SEND);
+                  }}
                 >
                   <Send size={18} />
                   Send a file
@@ -122,6 +127,7 @@ export default function HomePage() {
                         className="text-foreground flex w-full cursor-pointer items-center gap-2.5 rounded-md bg-transparent px-3 py-2 text-left font-sans text-sm font-medium tracking-[0.01em] transition-colors duration-150 hover:bg-white/10 hover:text-white"
                         onClick={() => {
                           setIsDropdownOpen(false);
+                          handleChooseFromDevice();
                         }}
                       >
                         <MonitorUp size={16} className="text-muted shrink-0" />
@@ -131,7 +137,10 @@ export default function HomePage() {
                       </button>
                       <button
                         className="text-foreground flex w-full cursor-pointer items-center gap-2.5 rounded-md bg-transparent px-3 py-2 text-left font-sans text-sm font-medium tracking-[0.01em] transition-colors duration-150 hover:bg-white/10 hover:text-white"
-                        onClick={() => setIsDropdownOpen(false)}
+                        onClick={() => {
+                          setIsDropdownOpen(false);
+                          handleChooseSavedItems();
+                        }}
                       >
                         <Archive size={16} className="text-muted shrink-0" />
                         <span className="whitespace-nowrap">Saved items</span>
@@ -139,12 +148,24 @@ export default function HomePage() {
                     </motion.div>
                   )}
                 </AnimatePresence>
+
+                <input
+                  type="file"
+                  multiple
+                  className="hidden"
+                  ref={fileInputRef}
+                  onChange={handleFilesSelected}
+                />
               </div>
 
               <motion.button
                 whileHover={{ y: -2 }}
                 whileTap={{ scale: 0.98 }}
                 className="text-foreground flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border-[1.5px] border-white/8 bg-transparent px-7 py-3.25 font-sans text-[15px] font-semibold tracking-[0.04em] transition-colors duration-200 hover:border-white/35 hover:bg-white/4 sm:w-auto sm:justify-start"
+                onClick={() => {
+                  setPeerType(PEER_TYPE.RECEIVE);
+                  router.push("/enter/receive");
+                }}
               >
                 <Download size={16} />
                 Receive

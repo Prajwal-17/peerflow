@@ -1,5 +1,6 @@
 "use client";
 
+import { useFileTransferStore } from "@/store/fileTransferStore";
 import {
   CheckCircle2,
   Copy,
@@ -23,6 +24,10 @@ export default function SendPage() {
   const [showQr, setShowQr] = useState(false);
   const [inviteLink, setInviteLink] = useState("");
 
+  const fileTransferItems = useFileTransferStore(
+    (state) => state.fileTransferItems,
+  );
+
   useEffect(() => {
     setInviteLink(`${window.location.origin}/${roomId || "25232"}`);
   }, [roomId]);
@@ -43,7 +48,6 @@ export default function SendPage() {
         <div className="pointer-events-none fixed -bottom-25 -left-25 z-0 h-125 w-125 rounded-full bg-[radial-gradient(circle,rgba(0,100,255,0.04)_0%,transparent_70%)]" />
 
         <div className="z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col">
-          {/* nav */}
           <nav className="flex items-center justify-between border-b border-white/8 px-6 py-4 sm:px-8 sm:py-5">
             <div className="flex items-center gap-2.5">
               <div className="border-accent text-accent flex h-9 w-9 items-center justify-center rounded-lg border-[1.5px] shadow-[0_0_12px_rgba(0,229,160,0.3)]">
@@ -61,7 +65,6 @@ export default function SendPage() {
           </nav>
 
           <main className="flex flex-1 flex-col items-center px-6 pt-6 pb-6 sm:px-8 sm:pt-10 sm:pb-8">
-            {/* Room Info */}
             <div className="text-muted mb-6 flex flex-col items-center gap-4 font-mono text-sm sm:flex-row sm:gap-6">
               <div className="flex items-center gap-3">
                 <span className="text-white">
@@ -82,11 +85,10 @@ export default function SendPage() {
               </button>
             </div>
 
-            {/* Peers */}
             <div className="mb-8 flex w-full max-w-2xl items-center justify-center gap-8 sm:gap-16">
               <div className="flex flex-col items-center gap-2">
                 <div className="flex items-center gap-2 text-lg font-medium text-white">
-                  <User size={20} className="text-muted" /> You | (name)
+                  <User size={20} className="text-muted" /> You (Sender)
                 </div>
                 <span className="text-muted font-mono text-xs tracking-wider uppercase">
                   Sending
@@ -101,7 +103,7 @@ export default function SendPage() {
 
               <div className="flex flex-col items-center gap-2">
                 <div className="flex items-center gap-2 text-lg font-medium text-white">
-                  <User size={20} className="text-muted" /> P2 | (name)
+                  <User size={20} className="text-muted" /> Receiver
                 </div>
                 <span className="text-muted font-mono text-xs tracking-wider uppercase">
                   Receiving
@@ -109,53 +111,53 @@ export default function SendPage() {
               </div>
             </div>
 
-            {/* Transfer List Container */}
             <div className="relative mb-6 w-full max-w-3xl rounded-xl border border-white/10 bg-[#111214]/50 p-4 shadow-2xl backdrop-blur-md sm:p-5">
-              {/* File Item */}
-              <div className="group relative rounded-lg border border-white/10 bg-black/40 p-3 transition-colors hover:border-white/20">
-                <div className="flex items-start gap-3.5 sm:items-center">
-                  <div className="text-muted mt-0.5 rounded-md bg-white/5 p-2.5 transition-colors group-hover:text-white/80 sm:mt-0">
-                    <FileText size={18} />
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-1.5 flex flex-col gap-0.5 sm:flex-row sm:items-end sm:justify-between sm:gap-0">
-                      <span className="truncate text-[14px] font-medium text-white">
-                        Report.pdf
-                      </span>
-                      <span className="font-mono text-[12px] leading-none text-white">
-                        {dummyProgress}%
-                      </span>
+              {fileTransferItems.map((f, idx) => (
+                <div
+                  key={idx}
+                  className="group relative rounded-lg border border-white/10 bg-black/40 p-3 transition-colors hover:border-white/20"
+                >
+                  <div className="flex items-start gap-3.5 sm:items-center">
+                    <div className="text-muted mt-0.5 rounded-md bg-white/5 p-2.5 transition-colors group-hover:text-white/80 sm:mt-0">
+                      <FileText size={18} />
                     </div>
 
-                    {/* Progress Bar Container */}
-                    <div className="mb-2 h-1 w-full overflow-hidden rounded-full bg-white/10">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${dummyProgress}%` }}
-                        transition={{ duration: 1, ease: "easeOut" }}
-                        className="bg-accent relative h-full rounded-full shadow-[0_0_10px_rgba(0,229,160,0.5)]"
-                      />
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1.5 flex flex-col gap-0.5 sm:flex-row sm:items-end sm:justify-between sm:gap-0">
+                        <span className="truncate text-[14px] font-medium text-white">
+                          {f.name}
+                        </span>
+                        <span className="font-mono text-[12px] leading-none text-white">
+                          {dummyProgress}%
+                        </span>
+                      </div>
+
+                      <div className="mb-2 h-1 w-full overflow-hidden rounded-full bg-white/10">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${dummyProgress}%` }}
+                          transition={{ duration: 1, ease: "easeOut" }}
+                          className="bg-accent relative h-full rounded-full shadow-[0_0_10px_rgba(0,229,160,0.5)]"
+                        />
+                      </div>
+
+                      <div className="text-muted flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-[10.5px] leading-none">
+                        <span>4.2 MB / 5.0 MB</span>
+                        <span>1.2 MB/s</span>
+                        <span>~ 3sec left</span>
+                      </div>
                     </div>
 
-                    {/* Stats */}
-                    <div className="text-muted flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-[10.5px] leading-none">
-                      <span>4.2 MB / 5.0 MB</span>
-                      <span>1.2 MB/s</span>
-                      <span>~ 3sec left</span>
-                    </div>
-                  </div>
-
-                  <div className="ml-2 flex flex-col items-end justify-center sm:ml-3">
-                    <div className="text-accent bg-accent/10 border-accent/20 flex h-7 w-7 items-center justify-center rounded-full border">
-                      <CheckCircle2 size={14} />
+                    <div className="ml-2 flex flex-col items-end justify-center sm:ml-3">
+                      <div className="text-accent bg-accent/10 border-accent/20 flex h-7 w-7 items-center justify-center rounded-full border">
+                        <CheckCircle2 size={14} />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              ))}
             </div>
 
-            {/* Summary Information */}
             <div className="flex flex-col items-center gap-4">
               <div className="flex items-center gap-6 text-sm sm:gap-12">
                 <div className="flex flex-col items-center gap-1">
@@ -179,7 +181,6 @@ export default function SendPage() {
             </div>
           </main>
 
-          {/* footer */}
           <footer className="mt-auto flex flex-col items-center justify-center gap-3 border-t border-white/8 p-5 text-center sm:flex-row sm:px-8 sm:py-5 sm:text-left">
             <div className="font-mono text-[11px] tracking-[0.06em] text-white/20">
               Built by <span className="text-accent">Prajwal-17</span>

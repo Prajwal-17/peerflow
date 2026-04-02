@@ -1,41 +1,37 @@
+import { usePeerStore } from "@/store/peerStore";
 import { SOCKET_EVENT } from "@repo/types";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { peerSession } from "../lib/peerSession";
-import { usePeerStore } from "../store/peerStore";
 
 const useSignalling = () => {
-  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const router = useRouter();
 
   useEffect(() => {
-    const ws = new WebSocket(
-      process.env.NEXT_PUBLIC_SIGNALLING_SERVER as string,
-    );
-    ws.onopen = () => {
-      peerSession.setSocket(ws);
-      setIsConnected(true);
-    };
-    ws.onmessage = (event) => {
+    const handleMessage = (event: MessageEvent) => {
       const data = JSON.parse(event.data);
 
       switch (data.type) {
-        case SOCKET_EVENT.PEER_JOINED: {
-          usePeerStore.getState().setRemotePeerId(data.remotePeerId);
-          peerSession.setRemotePeerId(data.remotePeerId);
-          peerSession.createRTCPeerConn(peerSession.localPeerId);
-          peerSession.createCtrlChannel();
-          peerSession.createTransferChannel();
-          peerSession.createAndSendOffer(peerSession.localPeerId);
+        case SOCKET_EVENT.ROOM_JOINED: {
+          usePeerStore.getState().setRoomId(data.roomId);
+          peerSession.setRoomId(data.roomId);
+          usePeerStore.getState().setIsRoomJoined(true);
+          if (data.redirect) {
+            router.push(`${data.roomId}/send`);
+          }
           break;
         }
 
-        case SOCKET_EVENT.ROOM_JOINED: {
+        case SOCKET_EVENT.PEER_JOINED: {
           usePeerStore.getState().setRemotePeerId(data.remotePeerId);
           peerSession.setRemotePeerId(data.remotePeerId);
-          peerSession.createRTCPeerConn(peerSession.localPeerId);
-          peerSession.listenOnDataChannel(() => {
-            peerSession.listenOnCtrlChannel();
-            peerSession.listenOnTransferChannel();
-          });
+
+          peerSession.createRTCPeerConn();
+          peerSession.createCtrlChannel();
+          peerSession.createTransferChannel();
+
+          peerSession.createAndSendOffer();
+
           break;
         }
 
@@ -44,7 +40,8 @@ const useSignalling = () => {
           break;
 
         case SOCKET_EVENT.OFFER:
-          peerSession.handleOffer(data.offer, peerSession.localPeerId);
+          // create a rtc conn and then accept offer
+          peerSession.handleOffer(data.offer);
           break;
 
         case SOCKET_EVENT.ANSWER:
@@ -52,15 +49,12 @@ const useSignalling = () => {
           break;
       }
     };
-    ws.onclose = () => {
-      peerSession.setSocket(null);
-      setIsConnected(false);
-    };
 
-    return () => ws.close();
-  }, []);
-
-  return { isConnected };
+    peerSession.connect(
+      process.env.NEXT_PUBLIC_SIGNALLING_SERVER as string,
+      handleMessage,
+    );
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 };
 
 export default useSignalling;

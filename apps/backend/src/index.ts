@@ -51,10 +51,10 @@ app.get(
               JSON.stringify({
                 type: SOCKET_EVENT.ROOM_JOINED,
                 roomId: newRoomId,
+                redirect: true, // redirect to /roomId/send
                 msg: "Successfully joined room",
               }),
             );
-            console.log("createRoom", rooms);
             break;
           }
 
@@ -76,6 +76,7 @@ app.get(
               JSON.stringify({
                 type: SOCKET_EVENT.ROOM_JOINED,
                 roomId: roomId,
+                redirect: false, // redirect to /roomId/receive
                 msg: "Joined",
               }),
             );
@@ -84,6 +85,7 @@ app.get(
               type: SOCKET_EVENT.PEER_JOINED,
               remotePeerId: localPeerId,
             });
+
             break;
           }
 

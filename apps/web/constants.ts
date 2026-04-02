@@ -6,6 +6,8 @@ export const config = {
   ],
 };
 
+export const CODE_LENGTH = 5;
+
 export const featurePills = [
   "No account needed",
   "Any file type",
@@ -26,7 +28,7 @@ export const steps = [
     delay: "0.65s",
   },
   {
-  id: "03",
+    id: "03",
     title: "Drop & transfer",
     desc: "Files fly over WebRTC — zero servers",
     delay: "0.75s",
