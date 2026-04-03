@@ -2,6 +2,7 @@
 
 import { peerSession } from "@/lib/peerSession";
 import { useFileTransferStore } from "@/store/fileTransferStore";
+import { formatETA, formatFileSize } from "@/utils";
 import { CTRL_CH_EVENT } from "@repo/types";
 import {
   Check,
@@ -15,13 +16,16 @@ import {
   XCircle,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import QRCode from "react-qr-code";
 
 export default function TransferView({ roomId }: { roomId: string }) {
-  const [dummyProgress] = useState(68);
   const [showQr, setShowQr] = useState(false);
   const [inviteLink, setInviteLink] = useState("");
+
+  useEffect(() => {
+    setInviteLink(window.location.href);
+  }, [roomId]);
 
   const showIncomingBanner = useFileTransferStore(
     (state) => state.showIncomingBanner,
@@ -73,10 +77,16 @@ export default function TransferView({ roomId }: { roomId: string }) {
         >
           <div className="flex items-center gap-3">
             <span className="text-white">Room ID — {roomId}</span>
-            <button className="cursor-pointer transition-colors hover:text-white">
+            <button
+              onClick={() => navigator.clipboard.writeText(roomId)}
+              className="cursor-pointer transition-colors hover:text-white"
+            >
               <Copy size={16} />
             </button>
-            <button className="cursor-pointer transition-colors hover:text-white">
+            <button
+              onClick={() => navigator.clipboard.writeText(inviteLink)}
+              className="cursor-pointer transition-colors hover:text-white"
+            >
               <LinkIcon size={16} />
             </button>
           </div>
@@ -180,30 +190,51 @@ export default function TransferView({ roomId }: { roomId: string }) {
                       {f.name}
                     </span>
                     <span className="font-mono text-[12px] leading-none text-white">
-                      {dummyProgress}%
+                      {f.size > 0
+                        ? Math.round((f.progressBytes / f.size) * 100)
+                        : 0}
+                      %
                     </span>
                   </div>
 
                   <div className="mb-2 h-1 w-full overflow-hidden rounded-full bg-white/10">
                     <motion.div
                       initial={{ width: 0 }}
-                      animate={{ width: `${dummyProgress}%` }}
+                      animate={{
+                        width: `${f.size > 0 ? (f.progressBytes / f.size) * 100 : 0}%`,
+                      }}
                       transition={{ duration: 1, ease: "easeOut" }}
                       className="bg-accent relative h-full rounded-full shadow-[0_0_10px_rgba(0,229,160,0.5)]"
                     />
                   </div>
 
                   <div className="text-muted flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-[10.5px] leading-none">
-                    <span>4.2 MB / 5.0 MB</span>
-                    <span>1.2 MB/s</span>
-                    <span>~ 3sec left</span>
+                    <span>
+                      {formatFileSize(f.progressBytes)} /{" "}
+                      {formatFileSize(f.size)}
+                    </span>
+                    {f.progressBytes > 0 &&
+                      f.status !== "success" &&
+                      f.status !== "failed" && (
+                        <>
+                          <span> {formatFileSize(f.speed)} /s</span>
+                          <span>~{formatETA(f.eta)} </span>
+                        </>
+                      )}
                   </div>
                 </div>
 
                 <div className="ml-2 flex flex-col items-end justify-center sm:ml-3">
-                  <div className="text-accent bg-accent/10 border-accent/20 flex h-7 w-7 items-center justify-center rounded-full border">
-                    <CheckCircle2 size={14} />
-                  </div>
+                  {f.status === "success" && (
+                    <div className="text-accent bg-accent/10 border-accent/20 flex h-7 w-7 items-center justify-center rounded-full border">
+                      <CheckCircle2 size={14} />
+                    </div>
+                  )}
+                  {f.status === "failed" && (
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full border border-red-400/20 bg-red-400/10 text-red-400">
+                      <X size={14} />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

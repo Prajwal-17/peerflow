@@ -1,5 +1,6 @@
 "use client";
 
+import { Footer } from "@/components/Footer";
 import { useFileTransferStore } from "@/store/fileTransferStore";
 import { formatETA, formatFileSize } from "@/utils";
 import {
@@ -30,7 +31,7 @@ export default function SendPage() {
   );
 
   useEffect(() => {
-    setInviteLink(`${window.location.origin}/${roomId || "25232"}`);
+    setInviteLink(window.location.href);
   }, [roomId]);
 
   return (
@@ -71,10 +72,18 @@ export default function SendPage() {
                 <span className="text-white">
                   Room ID - {roomId || "25232"}
                 </span>
-                <button className="cursor-pointer transition-colors hover:text-white">
+                <button
+                  onClick={() =>
+                    navigator.clipboard.writeText(roomId || "25232")
+                  }
+                  className="cursor-pointer transition-colors hover:text-white"
+                >
                   <Copy size={16} />
                 </button>
-                <button className="cursor-pointer transition-colors hover:text-white">
+                <button
+                  onClick={() => navigator.clipboard.writeText(inviteLink)}
+                  className="cursor-pointer transition-colors hover:text-white"
+                >
                   <LinkIcon size={16} />
                 </button>
               </div>
@@ -129,7 +138,10 @@ export default function SendPage() {
                           {f.name}
                         </span>
                         <span className="font-mono text-[12px] leading-none text-white">
-                          {(f.progressBytes / f.size) * 100}%
+                          {f.size > 0
+                            ? Math.round((f.progressBytes / f.size) * 100)
+                            : 0}
+                          %
                         </span>
                       </div>
 
@@ -137,7 +149,7 @@ export default function SendPage() {
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{
-                            width: (f.progressBytes / f.size) * 100,
+                            width: `${f.size > 0 ? (f.progressBytes / f.size) * 100 : 0}%`,
                           }}
                           transition={{ duration: 1, ease: "easeOut" }}
                           className="bg-accent relative h-full rounded-full shadow-[0_0_10px_rgba(0,229,160,0.5)]"
@@ -149,19 +161,28 @@ export default function SendPage() {
                           {formatFileSize(f.progressBytes)} /{" "}
                           {formatFileSize(f.size)}
                         </span>
-                        <span> {formatFileSize(f.speed)} MB/s</span>
-                        <span>~{formatETA(f.eta)} </span>
+                        {f.progressBytes > 0 &&
+                          f.status !== "success" &&
+                          f.status !== "failed" && (
+                            <>
+                              <span> {formatFileSize(f.speed)} /s</span>
+                              <span>~{formatETA(f.eta)} </span>
+                            </>
+                          )}
                       </div>
                     </div>
 
                     <div className="ml-2 flex flex-col items-end justify-center sm:ml-3">
-                      <div className="text-accent bg-accent/10 border-accent/20 flex h-7 w-7 items-center justify-center rounded-full border">
-                        {f.status === "success" ? (
+                      {f.status === "success" && (
+                        <div className="text-accent bg-accent/10 border-accent/20 flex h-7 w-7 items-center justify-center rounded-full border">
                           <CheckCircle2 size={14} />
-                        ) : (
+                        </div>
+                      )}
+                      {f.status === "failed" && (
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full border border-red-400/20 bg-red-400/10 text-red-400">
                           <X size={14} />
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -191,11 +212,7 @@ export default function SendPage() {
             </div>
           </main>
 
-          <footer className="mt-auto flex flex-col items-center justify-center gap-3 border-t border-white/8 p-5 text-center sm:flex-row sm:px-8 sm:py-5 sm:text-left">
-            <div className="font-mono text-[11px] tracking-[0.06em] text-white/20">
-              Built by <span className="text-accent">Prajwal-17</span>
-            </div>
-          </footer>
+          <Footer />
         </div>
 
         <AnimatePresence>

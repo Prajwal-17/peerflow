@@ -1,5 +1,6 @@
 "use client";
 
+import { Footer } from "@/components/Footer";
 import { featurePills, steps } from "@/constants";
 import useSignalling from "@/hooks/useSignalling";
 import { useTransferSetup } from "@/hooks/useTransferSetup";
@@ -221,11 +222,7 @@ export default function HomePage() {
             ))}
           </section>
 
-          <footer className="flex flex-col items-center justify-center gap-3 border-t border-white/8 p-5 text-center sm:flex-row sm:px-8 sm:py-5 sm:text-left">
-            <div className="font-mono text-[11px] tracking-[0.06em] text-white/20">
-              Built by <span className="text-accent">Prajwal-17</span>
-            </div>
-          </footer>
+          <Footer />
         </div>
       </div>
     </>

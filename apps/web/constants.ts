@@ -17,20 +17,20 @@ export const featurePills = [
 export const steps = [
   {
     id: "01",
-    title: "Open Peerflow",
-    desc: "On both devices, no install needed",
+    title: "Select files & Send",
+    desc: "Choose files to share and click send to create a room",
     delay: "0.55s",
   },
   {
     id: "02",
-    title: "Connect peers",
-    desc: "Discover nearby or share a link",
+    title: "Receiver joins",
+    desc: "Join using the room ID, invite link, or QR scanner",
     delay: "0.65s",
   },
   {
     id: "03",
-    title: "Drop & transfer",
-    desc: "Files fly over WebRTC — zero servers",
+    title: "Transfer starts",
+    desc: "Files seamlessly transfer directly via WebRTC",
     delay: "0.75s",
   },
 ];
