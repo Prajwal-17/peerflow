@@ -14,13 +14,21 @@ export class PeerSession {
   remotePeerId: string = "";
 
   _pc: RTCPeerConnection | null = null;
+
   pendingCandidates: RTCIceCandidateInit[] | null = null;
   remoteDescriptionSet: boolean = false;
+
   ctrlChannel: RTCDataChannel | null = null;
   transferChannel: RTCDataChannel | null = null;
 
   nextFileIndex = 0;
   currFileMeta: FileTransferItem | null = null;
+  waitForAckResolver: ((value?: unknown) => void) | null = null;
+
+  writeQueue: Promise<void> = Promise.resolve();
+  bytesWrittenSinceAck: number = 0;
+  readonly ACK_THRESHOLD = 5 * 1024 * 1024; // 5MB
+
   dirHandler: FileSystemDirectoryHandle | null = null;
   fileHandler: FileSystemFileHandle | null = null;
   writableStream: FileSystemWritableFileStream | null = null;
@@ -346,33 +354,63 @@ export class PeerSession {
 
       case CTRL_CH_EVENT.TRANSFER_START: {
         let offset = 0;
-        const chunkSize = 16 * 1024;
+        const chunkSize = 16 * 1024; // 16KB
+        const MAX_BUFFER_THRESHOLD = 64 * 1024; // 64KB
+        const ACK_THRESHOLD = 5 * 1024 * 1024; // 5MB
+        let bytesSentSinceLastAck = 0;
         const fileItem = this.currFileMeta;
+        const channel = this.transferChannel;
 
-        if (!fileItem) {
-          return;
-        }
+        if (!channel || !fileItem) return;
+
+        channel.bufferedAmountLowThreshold = MAX_BUFFER_THRESHOLD;
 
         while (offset < fileItem.size) {
+          if (channel.bufferedAmount > MAX_BUFFER_THRESHOLD) {
+            await new Promise<void>((resolve) => {
+              channel.onbufferedamountlow = () => {
+                channel.onbufferedamountlow = null;
+                resolve();
+              };
+            });
+          }
+
+          if (bytesSentSinceLastAck >= ACK_THRESHOLD) {
+            await new Promise<void>((resolve) => {
+              this.waitForAckResolver = resolve;
+            });
+            bytesSentSinceLastAck = 0;
+          }
+
           const chunk = fileItem.file.slice(offset, offset + chunkSize);
           const buffer = await chunk.arrayBuffer();
-          this.transferChannel?.send(buffer);
-          offset += chunkSize;
+          channel.send(buffer);
+
+          const bytesSent = buffer.byteLength;
+          offset += bytesSent;
+          bytesSentSinceLastAck += bytesSent;
         }
 
-        const checkBufferAndSendEOF = async () => {
-          if (this.transferChannel?.bufferedAmount === 0) {
-            this.ctrlChannel?.send(
-              JSON.stringify({
-                type: "eof",
-              }),
-            );
-          } else {
-            setTimeout(checkBufferAndSendEOF, 50);
-          }
-        };
-        await checkBufferAndSendEOF();
+        await new Promise<void>((resolve) => {
+          const check = () => {
+            if (channel.bufferedAmount === 0) {
+              resolve();
+            } else {
+              setTimeout(check, 50);
+            }
+          };
+          check();
+        });
 
+        this.ctrlChannel?.send(JSON.stringify({ type: CTRL_CH_EVENT.EOF }));
+        break;
+      }
+
+      case CTRL_CH_EVENT.SYNC_ACK: {
+        if (this.waitForAckResolver) {
+          this.waitForAckResolver();
+          this.waitForAckResolver = null;
+        }
         break;
       }
 
@@ -397,9 +435,31 @@ export class PeerSession {
       console.log("Error no writable stream");
       return;
     }
-    const chunk = new Uint8Array(event.data);
-    await this.writableStream.write(chunk);
+
+    const chunk = event.data;
+
+    this.writeQueue = this.writeQueue.then(async () => {
+      try {
+        const value = new Uint8Array(chunk);
+        await this.writableStream?.write(value);
+        this.bytesWrittenSinceAck += chunk.byteLength;
+        if (this.bytesWrittenSinceAck >= this.ACK_THRESHOLD) {
+          this.sendAckToSender();
+          this.bytesWrittenSinceAck = 0;
+        }
+      } catch (error) {
+        console.error("Disk write failed:", error);
+      }
+    });
   };
+
+  sendAckToSender() {
+    this.ctrlChannel?.send(
+      JSON.stringify({
+        type: CTRL_CH_EVENT.SYNC_ACK,
+      }),
+    );
+  }
 }
 
 export const peerSession = new PeerSession();

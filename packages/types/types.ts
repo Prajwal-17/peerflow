@@ -36,6 +36,7 @@ export const CTRL_CH_EVENT = {
   READY: "ready", // connection & data channel are created -> send all files meta
   REQ_CURR_FILE_META: "transfer:files:current",
   TRANSFER_START: "transfer:start",
+  SYNC_ACK: "sync-ack",
 };
 
 export type CtrlChEvent = (typeof CTRL_CH_EVENT)[keyof typeof CTRL_CH_EVENT];
