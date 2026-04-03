@@ -22,8 +22,11 @@ export class PeerSession {
   transferChannel: RTCDataChannel | null = null;
 
   nextFileIndex = 0;
-  currFileMeta: FileTransferItem | null = null;
+  currFile: FileTransferItem | null = null;
   waitForAckResolver: ((value?: unknown) => void) | null = null;
+
+  // lastStoreUpdateTime: number = 0;
+  // lastBytesTransferred: number = 0;
 
   writeQueue: Promise<void> = Promise.resolve();
   bytesWrittenSinceAck: number = 0;
@@ -96,8 +99,8 @@ export class PeerSession {
     this.setSocket(null);
   }
 
-  setCurrFileMeta(file: FileTransferItem | null) {
-    this.currFileMeta = file;
+  setcurrFile(file: FileTransferItem | null) {
+    this.currFile = file;
   }
 
   setfileHandler(handler: FileSystemFileHandle | null) {
@@ -313,11 +316,11 @@ export class PeerSession {
           return;
         }
 
-        this.setCurrFileMeta(nextFile);
+        this.setcurrFile(nextFile);
         this.ctrlChannel?.send(
           JSON.stringify({
             type: CTRL_CH_EVENT.CURR_FILE_META,
-            data: this.currFileMeta,
+            data: this.currFile,
           }),
         );
 
@@ -325,7 +328,7 @@ export class PeerSession {
       }
 
       case CTRL_CH_EVENT.CURR_FILE_META: {
-        this.setCurrFileMeta(parsed.data);
+        this.setcurrFile(parsed.data);
         useFileTransferStore.getState().setCurrFile(parsed.data);
 
         if (!this.dirHandler) {
@@ -358,8 +361,11 @@ export class PeerSession {
         const MAX_BUFFER_THRESHOLD = 64 * 1024; // 64KB
         const ACK_THRESHOLD = 5 * 1024 * 1024; // 5MB
         let bytesSentSinceLastAck = 0;
-        const fileItem = this.currFileMeta;
+        const fileItem = this.currFile;
         const channel = this.transferChannel;
+
+        let lastBytes = 0;
+        let lastStoreUpdateTime = Date.now();
 
         if (!channel || !fileItem) return;
 
@@ -389,7 +395,26 @@ export class PeerSession {
           const bytesSent = buffer.byteLength;
           offset += bytesSent;
           bytesSentSinceLastAck += bytesSent;
+
+          if (Date.now() - lastStoreUpdateTime > 800) {
+            const bytesDiff = offset - lastBytes;
+            const timeDiff = Date.now() - lastStoreUpdateTime;
+            const speed = bytesDiff / (timeDiff / 1000);
+            const eta = (fileItem.size - offset) / speed;
+            eta.toFixed(0);
+
+            useFileTransferStore
+              .getState()
+              .updateProgress(this.currFile?.id, speed, offset, eta);
+
+            lastBytes = offset;
+            lastStoreUpdateTime = Date.now();
+          }
         }
+
+        useFileTransferStore
+          .getState()
+          .updateProgress(fileItem.id, 0, fileItem.size, 0);
 
         await new Promise<void>((resolve) => {
           const check = () => {

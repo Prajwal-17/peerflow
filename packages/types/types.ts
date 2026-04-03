@@ -46,6 +46,9 @@ export type FileTransferItem = {
   name: string;
   type: string;
   size: number;
+  progressBytes: number;
+  speed: number;
+  eta: number;
   lastModified: number;
   file: File;
   status: "success" | "failed" | "pending";
