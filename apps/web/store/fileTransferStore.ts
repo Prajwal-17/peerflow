@@ -9,6 +9,7 @@ type FileTransferStore = {
   setShowIncomingBanner: (value: boolean) => void;
   fileTransferItems: FileTransferItem[];
   setFileTransferItems: (files: FileTransferItem[]) => void;
+  updateProgress: (id: number, speed: number, bytes: number) => void;
 };
 
 export const useFileTransferStore = create<FileTransferStore>()(
@@ -16,34 +17,42 @@ export const useFileTransferStore = create<FileTransferStore>()(
     (set) => ({
       currFile: null,
       setCurrFile: (file) =>
-        set(
-          () => ({
-            currFile: file,
-          }),
-          false,
-          "setCurrFile",
-        ),
+        set(() => ({
+          currFile: file,
+        })),
 
       showIncomingBanner: false,
       setShowIncomingBanner: (value) =>
-        set(
-          () => ({
-            showIncomingBanner: value,
-          }),
-          false,
-          "setShowIncomingBanner",
-        ),
+        set(() => ({
+          showIncomingBanner: value,
+        })),
 
       fileTransferItems: [],
+
       setFileTransferItems: (files) =>
-        set(
-          () => ({
-            fileTransferItems: files,
-          }),
-          false,
-          "setFileTransferItems",
-        ),
+        set(() => ({
+          fileTransferItems: files,
+        })),
+
+      updateProgress: (id, speed, bytes) =>
+        set((state) => {
+          const updatedItems = [...state.fileTransferItems];
+
+          const item = updatedItems[id];
+          if (!item) return state;
+
+          updatedItems[id] = {
+            ...item,
+            progressBytes: bytes,
+            speed: speed,
+          };
+
+          return {
+            fileTransferItems: updatedItems,
+          };
+        }),
     }),
+
     {
       name: "FileTransferStore",
       enabled: true,

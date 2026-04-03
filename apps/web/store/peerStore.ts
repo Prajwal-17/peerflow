@@ -18,23 +18,30 @@ type PeerStore = {
 };
 
 export const usePeerStore = create<PeerStore>()(
-  devtools((set) => ({
-    roomId: "",
-    setRoomId: (id) => set({ roomId: id }),
+  devtools(
+    (set) => ({
+      roomId: "",
+      setRoomId: (id) => set({ roomId: id }),
 
-    isRoomJoined: false,
-    setIsRoomJoined: (value) => set({ isRoomJoined: value }),
+      isRoomJoined: false,
+      setIsRoomJoined: (value) => set({ isRoomJoined: value }),
 
-    isConnected: false,
-    setIsConnected: (value) => set({ isConnected: value }),
+      isConnected: false,
+      setIsConnected: (value) => set({ isConnected: value }),
 
-    localPeerId: "",
-    setLocalPeerId: (id) => set({ localPeerId: id }),
+      localPeerId: "",
+      setLocalPeerId: (id) => set({ localPeerId: id }),
 
-    remotePeerId: "",
-    setRemotePeerId: (id) => set({ remotePeerId: id }),
+      remotePeerId: "",
+      setRemotePeerId: (id) => set({ remotePeerId: id }),
 
-    peerType: undefined,
-    setPeerType: (type) => set({ peerType: type }),
-  })),
+      peerType: undefined,
+      setPeerType: (type) => set({ peerType: type }),
+    }),
+
+    {
+      name: "PeerStore",
+      enabled: true,
+    },
+  ),
 );
