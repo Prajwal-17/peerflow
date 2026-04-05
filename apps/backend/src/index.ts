@@ -125,6 +125,7 @@ app.get(
   }),
 );
 
+// @ts-ignore - vercel builder does not have Bun types
 const server = Bun.serve({
   fetch: app.fetch,
   port: 3000,
