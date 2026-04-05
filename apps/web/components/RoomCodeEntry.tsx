@@ -42,7 +42,7 @@ export default function RoomCodeEntry({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>, i: number) => {
     const raw = e.target.value.replace(/\s/g, "");
-    if (!raw) return;
+    if (!raw || raw.length === 0) return;
 
     if (raw.length > 1) {
       const chars = raw.slice(0, CODE_LENGTH - i).split("");
@@ -55,7 +55,7 @@ export default function RoomCodeEntry({
       return;
     }
 
-    const char = raw[raw.length - 1].toUpperCase();
+    const char = raw.charAt(raw.length - 1).toUpperCase();
     const next = [...digits];
     next[i] = char;
     setDigits(next);

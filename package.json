@@ -4,6 +4,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "start": "turbo run start",
     "dev:fe": "cd apps/frontend && bun dev",
     "dev:be": "cd apps/backend && bun run index.ts",
     "lint": "turbo run lint",

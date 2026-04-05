@@ -1,7 +1,9 @@
 {
   "name": "backend",
   "scripts": {
-    "dev": "bun run --hot src/index.ts"
+    "dev": "bun run --hot src/index.ts",
+    "build": "bun build src/index.ts --outdir ./dist",
+    "start": "PORT=3001 bun run dist/index.js"
   },
   "dependencies": {
     "@repo/types": "workspace:*",
