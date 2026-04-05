@@ -1,3 +1,4 @@
+/// <reference types="bun" />
 import { SOCKET_EVENT } from "@repo/types";
 import { Hono } from "hono";
 import { upgradeWebSocket, websocket } from "hono/bun";
