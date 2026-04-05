@@ -14,27 +14,28 @@ export class PeerSession {
   remotePeerId: string = "";
 
   _pc: RTCPeerConnection | null = null;
-
-  pendingCandidates: RTCIceCandidateInit[] | null = null;
-  remoteDescriptionSet: boolean = false;
-
   ctrlChannel: RTCDataChannel | null = null;
   transferChannel: RTCDataChannel | null = null;
 
-  nextFileIndex = 0;
-  currFile: FileTransferItem | null = null;
-  waitForAckResolver: ((value?: unknown) => void) | null = null;
+  private pendingCandidates: RTCIceCandidateInit[] | null = null;
+  private remoteDescriptionSet: boolean = false;
 
-  // lastStoreUpdateTime: number = 0;
-  // lastBytesTransferred: number = 0;
+  // sender
+  private nextFileIndex = 0;
+  private waitForAckResolver: ((value?: unknown) => void) | null = null;
+  private chunkSize = 16 * 1024; // 16KB
+  private MAX_BUFFER_THRESHOLD = 64 * 1024; // 64KB
 
-  writeQueue: Promise<void> = Promise.resolve();
-  bytesWrittenSinceAck: number = 0;
+  // receiver
+  private writeQueue: Promise<void> = Promise.resolve();
+  private bytesWrittenSinceAck: number = 0;
   readonly ACK_THRESHOLD = 5 * 1024 * 1024; // 5MB
 
-  dirHandler: FileSystemDirectoryHandle | null = null;
-  fileHandler: FileSystemFileHandle | null = null;
-  writableStream: FileSystemWritableFileStream | null = null;
+  // both sides
+  private currFile: FileTransferItem | null = null;
+  private dirHandler: FileSystemDirectoryHandle | null = null;
+  private fileHandler: FileSystemFileHandle | null = null;
+  private writableStream: FileSystemWritableFileStream | null = null;
 
   get pc(): RTCPeerConnection {
     if (!this._pc) {
@@ -43,7 +44,7 @@ export class PeerSession {
     return this._pc;
   }
 
-  setLocalPeerId(id: string) {
+  private setLocalPeerId(id: string) {
     this.localPeerId = id;
   }
 
@@ -51,7 +52,7 @@ export class PeerSession {
     this.remotePeerId = id;
   }
 
-  set pc(value: RTCPeerConnection) {
+  private set pc(value: RTCPeerConnection) {
     this._pc = value;
   }
 
@@ -59,7 +60,7 @@ export class PeerSession {
     this.roomId = id;
   }
 
-  setSocket(ws: WebSocket | null) {
+  private setSocket(ws: WebSocket | null) {
     this.socket = ws;
   }
 
@@ -99,7 +100,7 @@ export class PeerSession {
     this.setSocket(null);
   }
 
-  setcurrFile(file: FileTransferItem | null) {
+  private setcurrFile(file: FileTransferItem | null) {
     this.currFile = file;
   }
 
@@ -203,6 +204,11 @@ export class PeerSession {
 
   async handleOffer(offer: RTCSessionDescription) {
     try {
+      const pendingCandidates = this.pendingCandidates;
+      if (!pendingCandidates || pendingCandidates.length <= 0) {
+        console.log("Something went wrong with candidates");
+        return;
+      }
       if (!this._pc) {
         this.createRTCPeerConn();
       }
@@ -211,7 +217,7 @@ export class PeerSession {
       this.remoteDescriptionSet = true;
 
       // drain queued candidates
-      for (const candidate of this.pendingCandidates!) {
+      for (const candidate of pendingCandidates) {
         await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
       }
       this.pendingCandidates = [];
@@ -235,17 +241,23 @@ export class PeerSession {
   }
 
   async handleAnswer(answer: RTCSessionDescriptionInit) {
+    const pendingCandidates = this.pendingCandidates;
+    if (!pendingCandidates || pendingCandidates.length <= 0) {
+      console.log("Something went wrong with candidates");
+      return;
+    }
+
     await this.pc.setRemoteDescription(answer);
 
     this.remoteDescriptionSet = true;
 
-    for (const candidate of this.pendingCandidates!) {
+    for (const candidate of pendingCandidates) {
       await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
     }
     this.pendingCandidates = [];
   }
 
-  listenOnDataChannel(onReady?: () => void) {
+  private listenOnDataChannel(onReady?: () => void) {
     const received: Record<string, boolean> = {};
 
     this.pc.ondatachannel = (event) => {
@@ -273,15 +285,16 @@ export class PeerSession {
     };
   }
 
-  listenOnCtrlChannel = async (event: MessageEvent) => {
+  private listenOnCtrlChannel = async (event: MessageEvent) => {
     const parsed = JSON.parse(event.data);
+    const ctrlChannel = this.ctrlChannel;
 
     switch (parsed.type) {
       case CTRL_CH_EVENT.READY: {
         const fileTransferItems =
           useFileTransferStore.getState().fileTransferItems;
         this.nextFileIndex = 0;
-        this.ctrlChannel?.send(
+        ctrlChannel?.send(
           JSON.stringify({
             type: CTRL_CH_EVENT.FILES_META,
             data: fileTransferItems,
@@ -290,9 +303,10 @@ export class PeerSession {
 
         break;
       }
+
       case CTRL_CH_EVENT.FILES_META: {
         useFileTransferStore.getState().setFileTransferItems(parsed.data);
-        this.ctrlChannel?.send(
+        ctrlChannel?.send(
           JSON.stringify({
             type: CTRL_CH_EVENT.REQ_CURR_FILE_META,
           }),
@@ -308,7 +322,7 @@ export class PeerSession {
         this.nextFileIndex += 1;
 
         if (!nextFile) {
-          this.ctrlChannel?.send(
+          ctrlChannel?.send(
             JSON.stringify({
               type: CTRL_CH_EVENT.ALL_DONE,
             }),
@@ -317,7 +331,7 @@ export class PeerSession {
         }
 
         this.setcurrFile(nextFile);
-        this.ctrlChannel?.send(
+        ctrlChannel?.send(
           JSON.stringify({
             type: CTRL_CH_EVENT.CURR_FILE_META,
             data: this.currFile,
@@ -347,7 +361,7 @@ export class PeerSession {
         const writable = await fileHandler?.createWritable();
         peerSession.setWritableStream(writable ?? null);
 
-        peerSession.ctrlChannel?.send(
+        ctrlChannel?.send(
           JSON.stringify({
             type: CTRL_CH_EVENT.TRANSFER_START,
           }),
@@ -356,41 +370,40 @@ export class PeerSession {
       }
 
       case CTRL_CH_EVENT.TRANSFER_START: {
+        const currFile = this.currFile;
+        const chunkSize = this.chunkSize;
+        const transferChannel = this.transferChannel;
+
         let offset = 0;
-        const chunkSize = 16 * 1024; // 16KB
-        const MAX_BUFFER_THRESHOLD = 64 * 1024; // 64KB
-        const ACK_THRESHOLD = 5 * 1024 * 1024; // 5MB
         let bytesSentSinceLastAck = 0;
-        const fileItem = this.currFile;
-        const channel = this.transferChannel;
 
         let lastBytes = 0;
         let lastStoreUpdateTime = Date.now();
 
-        if (!channel || !fileItem) return;
+        if (!transferChannel || !currFile) return;
 
-        channel.bufferedAmountLowThreshold = MAX_BUFFER_THRESHOLD;
+        transferChannel.bufferedAmountLowThreshold = this.MAX_BUFFER_THRESHOLD;
 
-        while (offset < fileItem.size) {
-          if (channel.bufferedAmount > MAX_BUFFER_THRESHOLD) {
+        while (offset < currFile.size) {
+          if (transferChannel.bufferedAmount > this.MAX_BUFFER_THRESHOLD) {
             await new Promise<void>((resolve) => {
-              channel.onbufferedamountlow = () => {
-                channel.onbufferedamountlow = null;
+              transferChannel.onbufferedamountlow = () => {
+                transferChannel.onbufferedamountlow = null;
                 resolve();
               };
             });
           }
 
-          if (bytesSentSinceLastAck >= ACK_THRESHOLD) {
+          if (bytesSentSinceLastAck >= this.ACK_THRESHOLD) {
             await new Promise<void>((resolve) => {
-              this.waitForAckResolver = resolve;
+              this.waitForAckResolver = () => resolve;
             });
             bytesSentSinceLastAck = 0;
           }
 
-          const chunk = fileItem.file.slice(offset, offset + chunkSize);
+          const chunk = currFile.file.slice(offset, offset + chunkSize);
           const buffer = await chunk.arrayBuffer();
-          channel.send(buffer);
+          transferChannel.send(buffer);
 
           const bytesSent = buffer.byteLength;
           offset += bytesSent;
@@ -400,12 +413,12 @@ export class PeerSession {
             const bytesDiff = offset - lastBytes;
             const timeDiff = Date.now() - lastStoreUpdateTime;
             const speed = bytesDiff / (timeDiff / 1000);
-            const eta = (fileItem.size - offset) / speed;
+            const eta = (currFile.size - offset) / speed;
             eta.toFixed(0);
 
             useFileTransferStore
               .getState()
-              .updateProgress(this.currFile?.id, speed, offset, eta);
+              .updateProgress(currFile.id, speed, offset, eta);
 
             lastBytes = offset;
             lastStoreUpdateTime = Date.now();
@@ -414,11 +427,11 @@ export class PeerSession {
 
         useFileTransferStore
           .getState()
-          .updateProgress(fileItem.id, 0, fileItem.size, 0);
+          .updateProgress(currFile.id, 0, currFile.size, 0);
 
         await new Promise<void>((resolve) => {
           const check = () => {
-            if (channel.bufferedAmount === 0) {
+            if (transferChannel.bufferedAmount === 0) {
               resolve();
             } else {
               setTimeout(check, 50);
@@ -455,8 +468,9 @@ export class PeerSession {
     }
   };
 
-  listenOnTransferChannel = async (event: MessageEvent) => {
-    if (!this.writableStream) {
+  private listenOnTransferChannel = async (event: MessageEvent) => {
+    const writableStream = this.writableStream;
+    if (!writableStream) {
       console.log("Error no writable stream");
       return;
     }
@@ -466,7 +480,7 @@ export class PeerSession {
     this.writeQueue = this.writeQueue.then(async () => {
       try {
         const value = new Uint8Array(chunk);
-        await this.writableStream?.write(value);
+        await writableStream?.write(value);
         this.bytesWrittenSinceAck += chunk.byteLength;
         if (this.bytesWrittenSinceAck >= this.ACK_THRESHOLD) {
           this.sendAckToSender();
@@ -478,7 +492,7 @@ export class PeerSession {
     });
   };
 
-  sendAckToSender() {
+  private sendAckToSender() {
     this.ctrlChannel?.send(
       JSON.stringify({
         type: CTRL_CH_EVENT.SYNC_ACK,
