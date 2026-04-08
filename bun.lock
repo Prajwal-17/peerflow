@@ -4,6 +4,9 @@
   "workspaces": {
     "": {
       "name": "ft",
+      "dependencies": {
+        "wrangler": "^4.81.0",
+      },
       "devDependencies": {
         "@types/bun": "^1.3.11",
         "prettier": "^3.7.4",

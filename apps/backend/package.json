@@ -1,10 +1,11 @@
 {
   "name": "backend",
   "scripts": {
-    "deploy": "wrangler deploy",
-		"dev": "wrangler dev",
-		"start": "wrangler dev",
-		"cf-typegen": "wrangler types"
+    "build": "bun build src/index.ts --output=dist --target=browser --format=esm",
+    "deploy": "cd ../.. && bunx wrangler deploy --config apps/backend/wrangler.jsonc",
+    "dev": "wrangler dev",
+    "start": "wrangler dev",
+    "cf-typegen": "wrangler types"
   },
   "dependencies": {
     "@repo/types": "workspace:*",
