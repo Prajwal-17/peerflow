@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "peerflow-signalling-server",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-08",
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_classes": ["Signalling"],
+    },
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "SIGNALLING", "class_name": "Signalling" }],
+  },
+}

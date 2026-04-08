@@ -1,135 +1,22 @@
-/// <reference types="bun" />
-import { SOCKET_EVENT } from "@repo/types";
 import { Hono } from "hono";
-import { upgradeWebSocket, websocket } from "hono/bun";
-import type { WSContext } from "hono/ws";
-import ShortUniqueId = require("short-unique-id");
+import { Signalling } from "../lib/signalling";
 
-const app = new Hono();
-
-// roomId , peerId, WebSocket
-const rooms = new Map<string, Map<string, WSContext>>();
-
-const { randomUUID } = new ShortUniqueId({
-  dictionary: "alpha_upper",
-  length: 5,
-});
-
-const broadcastToRoom = (roomId: string, localPeerId: string, payload: any) => {
-  const room = rooms.get(roomId);
-  if (!room) return;
-  for (const [peerId, ws] of room.entries()) {
-    if (peerId !== localPeerId) {
-      ws.send(JSON.stringify({ ...payload }));
-    }
-  }
+type Bindings = {
+  SIGNALLING: DurableObjectNamespace;
 };
 
-app.get(
-  "/ws",
-  upgradeWebSocket((c) => {
-    let currentRoomId: string | null = null;
-    let currentPeerId: string | null = null;
+const app = new Hono<{ Bindings: Bindings }>();
 
-    return {
-      onMessage(event, ws) {
-        const data = JSON.parse(event.data.toString());
-        const { type, roomId, localPeerId, ...rest } = data;
+app.get("/ws", (c) => {
+  // all req sent to single instance
+  const id = c.env.SIGNALLING.idFromName("global-signalling-instance");
+  const stub = c.env.SIGNALLING.get(id);
 
-        currentPeerId = localPeerId;
-
-        // switch
-        switch (type) {
-          case SOCKET_EVENT.CREATE_ROOM: {
-            const newRoomId = randomUUID();
-
-            currentRoomId = newRoomId;
-
-            rooms.set(newRoomId, new Map());
-            const room = rooms.get(newRoomId);
-            room?.set(localPeerId, ws); // auto join sender
-            ws.send(
-              JSON.stringify({
-                type: SOCKET_EVENT.ROOM_JOINED,
-                roomId: newRoomId,
-                redirect: true, // redirect to /roomId/send
-                msg: "Successfully joined room",
-              }),
-            );
-            break;
-          }
-
-          case SOCKET_EVENT.JOIN_ROOM: {
-            if (!roomId || !rooms?.has(roomId)) {
-              ws.send(
-                JSON.stringify({
-                  type: SOCKET_EVENT.ERROR,
-                  msg: "Room not found",
-                }),
-              );
-            }
-            currentRoomId = roomId;
-
-            const room = rooms.get(roomId);
-            room?.set(localPeerId, ws);
-
-            ws.send(
-              JSON.stringify({
-                type: SOCKET_EVENT.ROOM_JOINED,
-                roomId: roomId,
-                redirect: false, // redirect to /roomId/receive
-                msg: "Joined",
-              }),
-            );
-
-            broadcastToRoom(roomId, localPeerId, {
-              type: SOCKET_EVENT.PEER_JOINED,
-              remotePeerId: localPeerId,
-            });
-
-            break;
-          }
-
-          case SOCKET_EVENT.OFFER:
-          case SOCKET_EVENT.ANSWER:
-          case SOCKET_EVENT.ICE_CANDIDATE: {
-            broadcastToRoom(roomId, localPeerId, {
-              type: type,
-              roomId: roomId,
-              localPeerId: localPeerId,
-              ...rest,
-            });
-            break;
-          }
-
-          default: {
-            console.warn("Unknown Socket Event type:", type);
-          }
-        }
-      },
-      onClose() {
-        if (currentRoomId && currentPeerId) {
-          const room = rooms.get(currentRoomId);
-          room?.delete(currentPeerId);
-          if (room?.size === 0) {
-            rooms.delete(currentRoomId);
-          } else {
-            broadcastToRoom(currentRoomId, currentPeerId, {
-              type: SOCKET_EVENT.PEER_LEFT,
-              peerId: currentPeerId,
-            });
-          }
-        }
-      },
-    };
-  }),
-);
-
-// @ts-ignore - vercel builder does not have Bun types
-const server = Bun.serve({
-  fetch: app.fetch,
-  port: 3000,
-  websocket,
+  // forward raw req to durable object
+  return stub.fetch(c.req.raw);
 });
 
 export default app;
+
+// wrangler expects Durable object export from main file "src/index.ts"
+export { Signalling };
