@@ -205,10 +205,6 @@ export class PeerSession {
   async handleOffer(offer: RTCSessionDescription) {
     try {
       const pendingCandidates = this.pendingCandidates;
-      if (!pendingCandidates || pendingCandidates.length <= 0) {
-        console.log("Something went wrong with candidates");
-        return;
-      }
       if (!this._pc) {
         this.createRTCPeerConn();
       }
@@ -217,10 +213,12 @@ export class PeerSession {
       this.remoteDescriptionSet = true;
 
       // drain queued candidates
-      for (const candidate of pendingCandidates) {
-        await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+      if (pendingCandidates && pendingCandidates.length > 0) {
+        for (const candidate of pendingCandidates) {
+          await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+        this.pendingCandidates = [];
       }
-      this.pendingCandidates = [];
 
       const answer = await this.pc.createAnswer();
       await this.pc.setLocalDescription(answer);
@@ -242,19 +240,17 @@ export class PeerSession {
 
   async handleAnswer(answer: RTCSessionDescriptionInit) {
     const pendingCandidates = this.pendingCandidates;
-    if (!pendingCandidates || pendingCandidates.length <= 0) {
-      console.log("Something went wrong with candidates");
-      return;
-    }
 
     await this.pc.setRemoteDescription(answer);
-
     this.remoteDescriptionSet = true;
 
-    for (const candidate of pendingCandidates) {
-      await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+    // Drain queued candidates only if they exist
+    if (pendingCandidates && pendingCandidates.length > 0) {
+      for (const candidate of pendingCandidates) {
+        await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+      this.pendingCandidates = [];
     }
-    this.pendingCandidates = [];
   }
 
   private listenOnDataChannel(onReady?: () => void) {
