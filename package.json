@@ -6,8 +6,8 @@
     "dev": "turbo run dev",
     "start": "turbo run start",
     "deploy": "turbo run deploy",
-    "dev:fe": "cd apps/frontend && bun dev",
-    "dev:be": "cd apps/backend && bun run index.ts",
+    "dev:fe": "cd apps/web && bun run dev",
+    "dev:be": "cd apps/backend && bun run dev",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types"

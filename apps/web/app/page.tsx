@@ -6,8 +6,8 @@ import useSignalling from "@/hooks/useSignalling";
 import { useTransferSetup } from "@/hooks/useTransferSetup";
 import { usePeerStore } from "@/store/peerStore";
 import { PEER_TYPE } from "@repo/types";
-import { Archive, Cast, Download, MonitorUp, Send } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { Download, Send } from "lucide-react";
+import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
@@ -22,7 +22,7 @@ export default function HomePage() {
   const {
     handleFilesSelected,
     handleChooseFromDevice,
-    handleChooseSavedItems,
+    // handleChooseSavedItems, // TODO: saved items feature
   } = useTransferSetup(dropdownRef, fileInputRef, setIsDropdownOpen);
 
   return (
@@ -52,7 +52,8 @@ export default function HomePage() {
               </span>
             </div>
 
-            <div className="flex items-center gap-5 sm:gap-8">
+            {/* TODO: share from saved items & connect to nearby devices */}
+            {/*<div className="flex items-center gap-5 sm:gap-8">
               <div className="text-muted hover:text-foreground flex cursor-pointer items-center gap-2 font-mono text-xs tracking-[0.06em] uppercase transition-colors duration-200">
                 <Archive size={18} />
                 <span className="hidden sm:inline">Saved Items</span>
@@ -63,7 +64,7 @@ export default function HomePage() {
                 <span className="hidden sm:inline">Nearby devices</span>
                 <span className="sm:hidden">Nearby</span>
               </div>
-            </div>
+            </div>*/}
           </nav>
 
           <main className="flex flex-1 flex-col items-center justify-center px-6 pt-10 pb-8 text-center sm:px-8 sm:pt-14 sm:pb-12">
@@ -102,19 +103,22 @@ export default function HomePage() {
                   whileTap={{ scale: 0.98 }}
                   className="bg-accent flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border-none px-7 py-3.5 font-sans text-[15px] font-bold tracking-[0.04em] text-black shadow-[0_0_24px_rgba(0,229,160,0.3)] transition-all duration-150 hover:shadow-[0_4px_32px_rgba(0,229,160,0.3)] sm:w-auto sm:justify-start"
                   onClick={() => {
-                    setIsDropdownOpen(!isDropdownOpen);
+                    // setIsDropdownOpen(!isDropdownOpen);
                     setPeerType(PEER_TYPE.SEND);
+                    handleChooseFromDevice();
                   }}
                 >
                   <Send size={18} />
                   Send a file
-                  <motion.div
+                  {/* TODO: dropdown to choose saved items */}
+                  {/*<motion.div
                     animate={{ rotate: isDropdownOpen ? -135 : 45 }}
                     transition={{ ease: "easeInOut", duration: 0.2 }}
                     className="ml-0.5 h-1.5 w-1.5 border-r-2 border-b-2 border-black"
-                  />
+                  />*/}
                 </motion.button>
 
+                {/*
                 <AnimatePresence>
                   {isDropdownOpen && (
                     <motion.div
@@ -149,6 +153,7 @@ export default function HomePage() {
                     </motion.div>
                   )}
                 </AnimatePresence>
+                */}
 
                 <input
                   type="file"
