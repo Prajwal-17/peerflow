@@ -30,6 +30,9 @@ export class PeerSession {
   private writeQueue: Promise<void> = Promise.resolve();
   private bytesWrittenSinceAck: number = 0;
   readonly ACK_THRESHOLD = 5 * 1024 * 1024; // 5MB
+  private totalBytesReceived: number = 0;
+  private lastStoreUpdateTime = Date.now();
+  private lastBytes: number = 0;
 
   // both sides
   private currFile: FileTransferItem | null = null;
@@ -334,6 +337,12 @@ export class PeerSession {
         this.setcurrFile(parsed.data);
         useFileTransferStore.getState().setCurrFile(parsed.data);
 
+        // reset
+        this.totalBytesReceived = 0;
+        this.lastBytes = 0;
+        this.lastStoreUpdateTime = Date.now();
+        this.bytesWrittenSinceAck = 0; // if sync ack not reset then transfer breaks after few files
+
         if (!this.dirHandler) {
           useFileTransferStore.getState().setShowIncomingBanner(true);
           break;
@@ -385,7 +394,8 @@ export class PeerSession {
 
           if (bytesSentSinceLastAck >= this.ACK_THRESHOLD) {
             await new Promise<void>((resolve) => {
-              this.waitForAckResolver = () => resolve;
+              // eslint-disable-next-line
+              this.waitForAckResolver = resolve as any;
             });
             bytesSentSinceLastAck = 0;
           }
@@ -402,8 +412,9 @@ export class PeerSession {
             const bytesDiff = offset - lastBytes;
             const timeDiff = Date.now() - lastStoreUpdateTime;
             const speed = bytesDiff / (timeDiff / 1000);
-            const eta = (currFile.size - offset) / speed;
-            eta.toFixed(0);
+            const rawEta =
+              speed > 0 ? (currFile.size - this.totalBytesReceived) / speed : 0;
+            const eta = Math.round(rawEta);
 
             useFileTransferStore
               .getState()
@@ -442,6 +453,13 @@ export class PeerSession {
       }
 
       case CTRL_CH_EVENT.EOF: {
+        await this.writeQueue;
+
+        if (this.currFile) {
+          useFileTransferStore
+            .getState()
+            .updateProgress(this.currFile.id, 0, this.currFile.size, 0);
+        }
         if (this.writableStream) {
           await this.writableStream.close();
           this.setWritableStream(null);
@@ -458,6 +476,9 @@ export class PeerSession {
   };
 
   private listenOnTransferChannel = async (event: MessageEvent) => {
+    const currFile = this.currFile;
+    if (!currFile) return;
+
     const writableStream = this.writableStream;
     if (!writableStream) {
       console.log("Error no writable stream");
@@ -468,12 +489,31 @@ export class PeerSession {
 
     this.writeQueue = this.writeQueue.then(async () => {
       try {
-        const value = new Uint8Array(chunk);
-        await writableStream?.write(value);
+        const chunkArray = new Uint8Array(chunk);
+        await writableStream?.write(chunkArray);
         this.bytesWrittenSinceAck += chunk.byteLength;
+
+        this.totalBytesReceived += chunk.byteLength;
+
         if (this.bytesWrittenSinceAck >= this.ACK_THRESHOLD) {
           this.sendAckToSender();
           this.bytesWrittenSinceAck = 0;
+        }
+
+        if (Date.now() - this.lastStoreUpdateTime > 800) {
+          const bytesDiff = this.totalBytesReceived - this.lastBytes;
+          const timeDiff = Date.now() - this.lastStoreUpdateTime;
+          const speed = bytesDiff / (timeDiff / 1000);
+          const rawEta =
+            speed > 0 ? (currFile.size - this.totalBytesReceived) / speed : 0;
+          const eta = Math.round(rawEta);
+
+          useFileTransferStore
+            .getState()
+            .updateProgress(currFile.id, speed, this.totalBytesReceived, eta);
+
+          this.lastBytes = this.totalBytesReceived;
+          this.lastStoreUpdateTime = Date.now();
         }
       } catch (error) {
         console.error("Disk write failed:", error);
