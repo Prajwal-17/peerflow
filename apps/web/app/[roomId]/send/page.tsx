@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   Copy,
   FileText,
-  Link as LinkIcon,
   QrCode,
   Send,
   User,
@@ -17,14 +16,18 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import QRCode from "react-qr-code";
+import { toast } from "sonner";
 
 export default function SendPage() {
   const params = useParams();
   const roomId = params?.roomId as string | undefined;
   const [showQr, setShowQr] = useState(false);
   const [inviteLink, setInviteLink] = useState("");
+  const [showRoomIdTooltip, setShowRoomIdTooltip] = useState(false);
+  const hasShownCompletionToast = useRef(false);
+  const roomTooltipTimeoutRef = useRef<number | null>(null);
 
   const fileTransferItems = useFileTransferStore(
     (state) => state.fileTransferItems,
@@ -33,6 +36,52 @@ export default function SendPage() {
   useEffect(() => {
     setInviteLink(window.location.href);
   }, [roomId]);
+
+  useEffect(() => {
+    return () => {
+      if (roomTooltipTimeoutRef.current) {
+        window.clearTimeout(roomTooltipTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const isComplete =
+      fileTransferItems.length > 0 &&
+      fileTransferItems.every((file) => file.status === "success");
+
+    if (isComplete && !hasShownCompletionToast.current) {
+      toast.success("Files sent successfully", {
+        id: "active-transfer",
+        description:
+          fileTransferItems.length === 1
+            ? "The receiver has the file."
+            : "The receiver has all selected files.",
+      });
+      hasShownCompletionToast.current = true;
+    }
+
+    if (!isComplete) {
+      hasShownCompletionToast.current = false;
+    }
+  }, [fileTransferItems]);
+
+  const handleCopyRoomId = async () => {
+    try {
+      await navigator.clipboard.writeText(roomId || "25232");
+      setShowRoomIdTooltip(true);
+
+      if (roomTooltipTimeoutRef.current) {
+        window.clearTimeout(roomTooltipTimeoutRef.current);
+      }
+
+      roomTooltipTimeoutRef.current = window.setTimeout(() => {
+        setShowRoomIdTooltip(false);
+      }, 1200);
+    } catch {
+      setShowRoomIdTooltip(false);
+    }
+  };
 
   return (
     <>
@@ -72,20 +121,20 @@ export default function SendPage() {
                 <span className="text-white">
                   Room ID - {roomId || "25232"}
                 </span>
-                <button
-                  onClick={() =>
-                    navigator.clipboard.writeText(roomId || "25232")
-                  }
-                  className="cursor-pointer transition-colors hover:text-white"
-                >
-                  <Copy size={16} />
-                </button>
-                <button
-                  onClick={() => navigator.clipboard.writeText(inviteLink)}
-                  className="cursor-pointer transition-colors hover:text-white"
-                >
-                  <LinkIcon size={16} />
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={handleCopyRoomId}
+                    className="cursor-pointer transition-colors hover:text-white"
+                    aria-label="Copy room ID"
+                  >
+                    <Copy size={16} />
+                  </button>
+                  {showRoomIdTooltip && (
+                    <div className="pointer-events-none absolute top-full left-1/2 z-10 mt-2 -translate-x-1/2 rounded-md border border-white/10 bg-surface px-2 py-1 font-mono text-[10px] tracking-[0.05em] text-white/75 shadow-lg">
+                      Copied
+                    </div>
+                  )}
+                </div>
               </div>
               <button
                 onClick={() => setShowQr(true)}
@@ -251,7 +300,23 @@ export default function SendPage() {
                   </div>
                   <p className="mt-6 text-center font-mono text-sm leading-relaxed text-white/50">
                     Scan this QR code with your mobile device to join room{" "}
-                    <span className="text-white">{roomId || "25232"}</span>
+                    <span className="inline-flex items-center gap-2 text-white">
+                      <span>{roomId || "25232"}</span>
+                      <span className="relative inline-flex">
+                        <button
+                          onClick={handleCopyRoomId}
+                          className="cursor-pointer text-white/55 transition-colors hover:text-white"
+                          aria-label="Copy room ID"
+                        >
+                          <Copy size={14} />
+                        </button>
+                        {showRoomIdTooltip && (
+                          <span className="pointer-events-none absolute top-full left-1/2 z-10 mt-2 -translate-x-1/2 rounded-md border border-white/10 bg-surface px-2 py-1 font-mono text-[10px] tracking-[0.05em] whitespace-nowrap text-white/75 shadow-lg">
+                            Copied
+                          </span>
+                        )}
+                      </span>
+                    </span>
                   </p>
                 </div>
               </motion.div>

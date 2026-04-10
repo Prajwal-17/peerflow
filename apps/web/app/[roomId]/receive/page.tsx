@@ -5,17 +5,23 @@ import RoomCodeEntry from "@/components/RoomCodeEntry";
 import TransferView from "@/components/TransferView";
 import useSignalling from "@/hooks/useSignalling";
 import { peerSession } from "@/lib/peerSession";
+import { useFileTransferStore } from "@/store/fileTransferStore";
 import { usePeerStore } from "@/store/peerStore";
 import { Send, Wifi } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 export default function ReceivePage() {
   const params = useParams();
   const router = useRouter();
   useSignalling();
   const isConnected = usePeerStore((s) => s.isConnected);
+  const fileTransferItems = useFileTransferStore(
+    (state) => state.fileTransferItems,
+  );
+  const hasShownCompletionToast = useRef(false);
 
   const paramRoomId = params?.roomId as string | undefined;
   const isEntry = !paramRoomId || paramRoomId === "enter"; // room entry state
@@ -28,9 +34,35 @@ export default function ReceivePage() {
     if (!isEntry && paramRoomId) setResolvedRoomId(paramRoomId);
   }, [isEntry, paramRoomId]);
 
+  useEffect(() => {
+    const isComplete =
+      fileTransferItems.length > 0 &&
+      fileTransferItems.every((file) => file.status === "success");
+
+    if (isComplete && !hasShownCompletionToast.current) {
+      toast.success("Files received successfully", {
+        id: "receive-complete",
+        description:
+          fileTransferItems.length === 1
+            ? "The file is saved to your selected folder."
+            : "All files are saved to your selected folder.",
+      });
+      hasShownCompletionToast.current = true;
+    }
+
+    if (!isComplete) {
+      hasShownCompletionToast.current = false;
+    }
+  }, [fileTransferItems]);
+
   const handleJoin = useCallback(
     (code: string) => {
-      if (!isConnected) return;
+      if (!isConnected) {
+        toast.error("Still connecting", {
+          description: "Wait for the signalling connection, then try again.",
+        });
+        return;
+      }
       peerSession.setRoomId(code);
       usePeerStore.getState().setRoomId(code);
       peerSession.joinRoom();

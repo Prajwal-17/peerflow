@@ -1,3 +1,4 @@
+import { AppToaster } from "@/components/AppToaster";
 import type { Metadata } from "next";
 import { DM_Mono, Syne } from "next/font/google";
 import "./globals.css";
@@ -28,7 +29,10 @@ export default function RootLayout({
       lang="en"
       className={`${syne.variable} ${dmMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        {children}
+        <AppToaster />
+      </body>
     </html>
   );
 }

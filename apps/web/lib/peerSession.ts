@@ -1,5 +1,6 @@
 import { CTRL_CH_EVENT, FileTransferItem, SOCKET_EVENT } from "@repo/types";
 import ShortUniqueId from "short-unique-id";
+import { toast } from "sonner";
 import { config } from "../constants";
 import { useFileTransferStore } from "../store/fileTransferStore";
 import { usePeerStore } from "../store/peerStore";
@@ -91,6 +92,13 @@ export class PeerSession {
 
     ws.onmessage = onMessage;
 
+    ws.onerror = () => {
+      toast.error("Could not reach signalling server", {
+        id: "socket-status",
+        description: "Check your connection and try again.",
+      });
+    };
+
     ws.onclose = () => {
       this.setSocket(null);
       usePeerStore.getState().setIsConnected(false);
@@ -160,6 +168,23 @@ export class PeerSession {
         );
       }
     };
+
+    pc.onconnectionstatechange = () => {
+      switch (pc.connectionState) {
+        case "disconnected":
+          toast.warning("Peer connection interrupted", {
+            id: "peer-connection",
+            description: "Waiting for the other device to reconnect.",
+          });
+          break;
+        case "failed":
+          toast.error("Peer connection failed", {
+            id: "peer-connection",
+            description: "Refresh and try the transfer again.",
+          });
+          break;
+      }
+    };
   }
 
   async handleIceCandidate(candidate: RTCIceCandidateInit) {
@@ -202,6 +227,10 @@ export class PeerSession {
       );
     } catch (error) {
       console.log(error);
+      toast.error("Failed to start transfer", {
+        id: "peer-connection",
+        description: "Unable to create a WebRTC offer.",
+      });
     }
   }
 
@@ -238,21 +267,33 @@ export class PeerSession {
       );
     } catch (error) {
       console.log(error);
+      toast.error("Failed to accept transfer", {
+        id: "peer-connection",
+        description: "Unable to create a WebRTC answer.",
+      });
     }
   }
 
   async handleAnswer(answer: RTCSessionDescriptionInit) {
-    const pendingCandidates = this.pendingCandidates;
+    try {
+      const pendingCandidates = this.pendingCandidates;
 
-    await this.pc.setRemoteDescription(answer);
-    this.remoteDescriptionSet = true;
+      await this.pc.setRemoteDescription(answer);
+      this.remoteDescriptionSet = true;
 
-    // Drain queued candidates only if they exist
-    if (pendingCandidates && pendingCandidates.length > 0) {
-      for (const candidate of pendingCandidates) {
-        await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+      // Drain queued candidates only if they exist
+      if (pendingCandidates && pendingCandidates.length > 0) {
+        for (const candidate of pendingCandidates) {
+          await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+        this.pendingCandidates = [];
       }
-      this.pendingCandidates = [];
+    } catch (error) {
+      console.log(error);
+      toast.error("Could not finalize peer connection", {
+        id: "peer-connection",
+        description: "The remote answer could not be applied.",
+      });
     }
   }
 
@@ -472,6 +513,10 @@ export class PeerSession {
         );
         break;
       }
+
+      case CTRL_CH_EVENT.ALL_DONE: {
+        break;
+      }
     }
   };
 
@@ -517,6 +562,10 @@ export class PeerSession {
         }
       } catch (error) {
         console.error("Disk write failed:", error);
+        toast.error("Could not save incoming file", {
+          id: "transfer-write-error",
+          description: "Check folder permissions and available disk space.",
+        });
       }
     });
   };

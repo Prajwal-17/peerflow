@@ -2,6 +2,7 @@ import { usePeerStore } from "@/store/peerStore";
 import { SOCKET_EVENT } from "@repo/types";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { toast } from "sonner";
 import { peerSession } from "../lib/peerSession";
 
 const useSignalling = () => {
@@ -16,6 +17,13 @@ const useSignalling = () => {
           usePeerStore.getState().setRoomId(data.roomId);
           peerSession.setRoomId(data.roomId);
           usePeerStore.getState().setIsRoomJoined(true);
+          toast.success(
+            data.redirect ? "Room created" : "Joined room successfully",
+            {
+              id: data.redirect ? "room-lifecycle" : "join-room",
+              description: `Room ${data.roomId} is ready.`,
+            },
+          );
           if (data.redirect) {
             router.push(`${data.roomId}/send`);
           }
@@ -25,6 +33,10 @@ const useSignalling = () => {
         case SOCKET_EVENT.PEER_JOINED: {
           usePeerStore.getState().setRemotePeerId(data.remotePeerId);
           peerSession.setRemotePeerId(data.remotePeerId);
+          toast.success("Peer joined", {
+            id: "peer-joined",
+            description: "Preparing direct connection.",
+          });
 
           peerSession.createRTCPeerConn();
           peerSession.createCtrlChannel();
@@ -46,6 +58,20 @@ const useSignalling = () => {
 
         case SOCKET_EVENT.ANSWER:
           peerSession.handleAnswer(data.answer);
+          break;
+
+        case SOCKET_EVENT.PEER_LEFT:
+          toast.warning("Peer disconnected", {
+            id: "peer-connection",
+            description: "The other device left the room.",
+          });
+          break;
+
+        case SOCKET_EVENT.ERROR:
+          toast.error("Signalling error", {
+            id: "socket-status",
+            description: data.message ?? "Please try again.",
+          });
           break;
       }
     };
