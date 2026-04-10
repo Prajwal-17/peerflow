@@ -253,14 +253,12 @@ export class PeerSession {
     }
   }
 
-  private listenOnDataChannel(onReady?: () => void) {
-    const received: Record<string, boolean> = {};
-
+  private listenOnDataChannel() {
     this.pc.ondatachannel = (event) => {
       const channel = event.channel;
       if (channel.label === "control") {
         this.ctrlChannel = channel;
-        this.ctrlChannel.onmessage = this.listenOnCtrlChannel;
+        this.ctrlChannel.onmessage = this.listenOnCtrlChannel; // message handler set to onmessage event
         this.ctrlChannel.onopen = () => {
           this.ctrlChannel?.send(
             JSON.stringify({
@@ -268,15 +266,10 @@ export class PeerSession {
             }),
           );
         };
-        received.control = true;
       }
       if (channel.label === "transfer") {
         this.transferChannel = channel;
-        this.transferChannel.onmessage = this.listenOnTransferChannel;
-        received.transfer = true;
-      }
-      if (received.control && received.transfer) {
-        onReady?.();
+        this.transferChannel.onmessage = this.listenOnTransferChannel; // message handler set to onmessage event
       }
     };
   }
