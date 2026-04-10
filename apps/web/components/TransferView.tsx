@@ -1,6 +1,7 @@
 "use client";
 
 import { peerSession } from "@/lib/peerSession";
+import { useTransferSession } from "@/hooks/useTransferSession";
 import { useFileTransferStore } from "@/store/fileTransferStore";
 import { formatETA, formatFileSize } from "@/utils";
 import { CTRL_CH_EVENT } from "@repo/types";
@@ -9,23 +10,33 @@ import {
   CheckCircle2,
   Copy,
   FileText,
-  Link as LinkIcon,
-  QrCode,
-  User,
   X,
   XCircle,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import QRCode from "react-qr-code";
+import { TransferSessionCard } from "./TransferSessionCard";
 
 export default function TransferView({ roomId }: { roomId: string }) {
   const [showQr, setShowQr] = useState(false);
   const [inviteLink, setInviteLink] = useState("");
+  const [hasCopiedRoomId, setHasCopiedRoomId] = useState(false);
+  const roomTooltipTimeoutRef = useRef<number | null>(null);
+  const { goHome, hasFailures, isTransferComplete, redirectCountdown } =
+    useTransferSession();
 
   useEffect(() => {
     setInviteLink(window.location.href);
   }, [roomId]);
+
+  useEffect(() => {
+    return () => {
+      if (roomTooltipTimeoutRef.current) {
+        window.clearTimeout(roomTooltipTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const showIncomingBanner = useFileTransferStore(
     (state) => state.showIncomingBanner,
@@ -37,6 +48,23 @@ export default function TransferView({ roomId }: { roomId: string }) {
     (state) => state.fileTransferItems,
   );
   const currFile = useFileTransferStore((state) => state.currFile);
+
+  const handleCopyRoomId = async () => {
+    try {
+      await navigator.clipboard.writeText(roomId);
+      setHasCopiedRoomId(true);
+
+      if (roomTooltipTimeoutRef.current) {
+        window.clearTimeout(roomTooltipTimeoutRef.current);
+      }
+
+      roomTooltipTimeoutRef.current = window.setTimeout(() => {
+        setHasCopiedRoomId(false);
+      }, 1200);
+    } catch {
+      setHasCopiedRoomId(false);
+    }
+  };
 
   const handleAccept = async () => {
     const dirHandler = await window.showDirectoryPicker({
@@ -69,65 +97,23 @@ export default function TransferView({ roomId }: { roomId: string }) {
   return (
     <>
       <main className="flex flex-1 flex-col items-center px-6 pt-6 pb-6 sm:px-8 sm:pt-10 sm:pb-8">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          className="text-muted mb-6 flex flex-col items-center gap-4 font-mono text-sm sm:flex-row sm:gap-6"
-        >
-          <div className="flex items-center gap-3">
-            <span className="text-white">Room ID — {roomId}</span>
-            <button
-              onClick={() => navigator.clipboard.writeText(roomId)}
-              className="cursor-pointer transition-colors hover:text-white"
-            >
-              <Copy size={16} />
-            </button>
-            <button
-              onClick={() => navigator.clipboard.writeText(inviteLink)}
-              className="cursor-pointer transition-colors hover:text-white"
-            >
-              <LinkIcon size={16} />
-            </button>
-          </div>
-          <button
-            onClick={() => setShowQr(true)}
-            className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/20 px-3 py-1.5 text-xs tracking-wider text-white uppercase transition-colors hover:bg-white/10"
-          >
-            Show Qr <QrCode size={16} />
-          </button>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.08, ease: "easeOut" }}
-          className="mb-8 flex w-full max-w-2xl items-center justify-center gap-8 sm:gap-16"
-        >
-          <div className="flex flex-col items-center gap-2">
-            <div className="flex items-center gap-2 text-lg font-medium text-white">
-              <User size={20} className="text-muted" /> You | (name)
-            </div>
-            <span className="text-muted font-mono text-xs tracking-wider uppercase">
-              Sending
-            </span>
-          </div>
-
-          <div className="text-muted relative flex w-24 items-center justify-center sm:w-32">
-            <div className="absolute h-px w-full bg-white/20" />
-            <div className="absolute -left-1 h-2 w-2 -rotate-45 transform border-t border-l border-white/40" />
-            <div className="absolute -right-1 h-2 w-2 rotate-45 transform border-t border-r border-white/40" />
-          </div>
-
-          <div className="flex flex-col items-center gap-2">
-            <div className="flex items-center gap-2 text-lg font-medium text-white">
-              <User size={20} className="text-muted" /> P2 | (name)
-            </div>
-            <span className="text-muted font-mono text-xs tracking-wider uppercase">
-              Receiving
-            </span>
-          </div>
-        </motion.div>
+        <TransferSessionCard
+          title={isTransferComplete ? "Files received" : "Receiving files"}
+          description={
+            isTransferComplete
+              ? hasFailures
+                ? "The transfer finished with some errors. You will return home automatically shortly."
+                : "Everything selected by the sender has been saved. You will return home automatically shortly."
+              : "Keep this page open while files are being written to your device. Leaving now will stop the active transfer."
+          }
+          isComplete={isTransferComplete}
+          redirectCountdown={redirectCountdown}
+          roomId={roomId}
+          hasCopiedRoomId={hasCopiedRoomId}
+          onGoHome={goHome}
+          onCopyRoomId={handleCopyRoomId}
+          onShowQr={() => setShowQr(true)}
+        />
 
         <AnimatePresence>
           {showIncomingBanner && (
@@ -241,30 +227,6 @@ export default function TransferView({ roomId }: { roomId: string }) {
           ))}
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2, ease: "easeOut" }}
-          className="flex flex-col items-center gap-4"
-        >
-          <div className="flex items-center gap-6 text-sm sm:gap-12">
-            <div className="flex flex-col items-center gap-1">
-              <div className="text-accent flex items-center gap-2 font-medium">
-                <CheckCircle2 size={18} /> Total Success
-              </div>
-            </div>
-            <div className="h-8 w-px bg-white/10" />
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex items-center gap-2 font-medium text-red-400">
-                <XCircle size={18} /> Total Error
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-6 py-2.5 font-mono text-xs text-red-400 sm:text-sm">
-            err msg
-          </div>
-        </motion.div>
       </main>
 
       <AnimatePresence>
@@ -303,7 +265,16 @@ export default function TransferView({ roomId }: { roomId: string }) {
                 </div>
                 <p className="mt-6 text-center font-mono text-sm leading-relaxed text-white/50">
                   Scan this QR code with your mobile device to join room{" "}
-                  <span className="text-white">{roomId}</span>
+                  <span className="inline-flex items-center gap-2 text-white">
+                    <span>{roomId}</span>
+                    <button
+                      onClick={handleCopyRoomId}
+                      className="cursor-pointer text-white/55 transition-colors hover:text-white"
+                      aria-label="Copy room ID"
+                    >
+                      <Copy size={14} />
+                    </button>
+                  </span>
                 </p>
               </div>
             </motion.div>

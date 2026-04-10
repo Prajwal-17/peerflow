@@ -15,6 +15,7 @@ type PeerStore = {
   setRemotePeerId: (id: string) => void;
   peerType: PeerType | undefined;
   setPeerType: (type: PeerType) => void;
+  reset: () => void;
 };
 
 export const usePeerStore = create<PeerStore>()(
@@ -37,6 +38,16 @@ export const usePeerStore = create<PeerStore>()(
 
       peerType: undefined,
       setPeerType: (type) => set({ peerType: type }),
+
+      reset: () =>
+        set({
+          roomId: "",
+          isRoomJoined: false,
+          isConnected: false,
+          localPeerId: "",
+          remotePeerId: "",
+          peerType: undefined,
+        }),
     }),
 
     {

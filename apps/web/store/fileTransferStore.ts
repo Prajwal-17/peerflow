@@ -9,6 +9,7 @@ type FileTransferStore = {
   setShowIncomingBanner: (value: boolean) => void;
   fileTransferItems: FileTransferItem[];
   setFileTransferItems: (files: FileTransferItem[]) => void;
+  reset: () => void;
   updateProgress: (
     id: number,
     speed: number,
@@ -37,6 +38,13 @@ export const useFileTransferStore = create<FileTransferStore>()(
       setFileTransferItems: (files) =>
         set(() => ({
           fileTransferItems: files,
+        })),
+
+      reset: () =>
+        set(() => ({
+          currFile: null,
+          showIncomingBanner: false,
+          fileTransferItems: [],
         })),
 
       updateProgress: (id, speed, bytes, eta) =>

@@ -1,19 +1,11 @@
 "use client";
 
 import { Footer } from "@/components/Footer";
+import { TransferSessionCard } from "@/components/TransferSessionCard";
+import { useTransferSession } from "@/hooks/useTransferSession";
 import { useFileTransferStore } from "@/store/fileTransferStore";
 import { formatETA, formatFileSize } from "@/utils";
-import {
-  CheckCircle2,
-  Copy,
-  FileText,
-  QrCode,
-  Send,
-  User,
-  Wifi,
-  X,
-  XCircle,
-} from "lucide-react";
+import { CheckCircle2, FileText, Send, X, XCircle } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -29,6 +21,8 @@ export default function SendPage() {
   const [showRoomIdTooltip, setShowRoomIdTooltip] = useState(false);
   const hasShownCompletionToast = useRef(false);
   const roomTooltipTimeoutRef = useRef<number | null>(null);
+  const { goHome, hasFailures, isTransferComplete, redirectCountdown } =
+    useTransferSession();
 
   const fileTransferItems = useFileTransferStore(
     (state) => state.fileTransferItems,
@@ -68,8 +62,10 @@ export default function SendPage() {
   }, [fileTransferItems]);
 
   const handleCopyRoomId = async () => {
+    if (!roomId) return;
+
     try {
-      await navigator.clipboard.writeText(roomId || "25232");
+      await navigator.clipboard.writeText(roomId);
       setShowRoomIdTooltip(true);
 
       if (roomTooltipTimeoutRef.current) {
@@ -112,67 +108,26 @@ export default function SendPage() {
                 Peerflow
               </span>
             </Link>
-
-            <div className="text-accent flex items-center gap-2 font-mono text-xs tracking-[0.06em] uppercase">
-              <Wifi size={18} />
-              <span className="hidden sm:inline">Connected</span>
-            </div>
           </nav>
 
           <main className="flex flex-1 flex-col items-center px-6 pt-6 pb-6 sm:px-8 sm:pt-10 sm:pb-8">
-            <div className="text-muted mb-6 flex flex-col items-center gap-4 font-mono text-sm sm:flex-row sm:gap-6">
-              <div className="flex items-center gap-3">
-                <span className="text-white">
-                  Room ID - {roomId || "25232"}
-                </span>
-                <div className="relative">
-                  <button
-                    onClick={handleCopyRoomId}
-                    className="cursor-pointer transition-colors hover:text-white"
-                    aria-label="Copy room ID"
-                  >
-                    <Copy size={16} />
-                  </button>
-                  {showRoomIdTooltip && (
-                    <div className="pointer-events-none absolute top-full left-1/2 z-10 mt-2 -translate-x-1/2 rounded-md border border-white/10 bg-surface px-2 py-1 font-mono text-[10px] tracking-[0.05em] text-white/75 shadow-lg">
-                      Copied
-                    </div>
-                  )}
-                </div>
-              </div>
-              <button
-                onClick={() => setShowQr(true)}
-                className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/20 px-3 py-1.5 text-xs tracking-wider text-white uppercase transition-colors hover:bg-white/10"
-              >
-                Show Qr <QrCode size={16} />
-              </button>
-            </div>
-
-            <div className="mb-8 flex w-full max-w-2xl items-center justify-center gap-8 sm:gap-16">
-              <div className="flex flex-col items-center gap-2">
-                <div className="flex items-center gap-2 text-lg font-medium text-white">
-                  <User size={20} className="text-muted" /> You (Sender)
-                </div>
-                <span className="text-muted font-mono text-xs tracking-wider uppercase">
-                  Sending
-                </span>
-              </div>
-
-              <div className="text-muted relative flex w-24 items-center justify-center sm:w-32">
-                <div className="absolute h-px w-full bg-white/20"></div>
-                <div className="absolute -left-1 h-2 w-2 -rotate-45 transform border-t border-l border-white/40"></div>
-                <div className="absolute -right-1 h-2 w-2 rotate-45 transform border-t border-r border-white/40"></div>
-              </div>
-
-              <div className="flex flex-col items-center gap-2">
-                <div className="flex items-center gap-2 text-lg font-medium text-white">
-                  <User size={20} className="text-muted" /> Receiver
-                </div>
-                <span className="text-muted font-mono text-xs tracking-wider uppercase">
-                  Receiving
-                </span>
-              </div>
-            </div>
+            <TransferSessionCard
+              title={isTransferComplete ? "Files sent" : "Sending files"}
+              description={
+                isTransferComplete
+                  ? hasFailures
+                    ? "The transfer finished with some errors. You will return home automatically shortly."
+                    : "All selected files reached the receiver. You will return home automatically shortly."
+                  : "Keep this page open until every file finishes transferring. Leaving now will stop the active transfer."
+              }
+              isComplete={isTransferComplete}
+              redirectCountdown={redirectCountdown}
+              roomId={roomId}
+              hasCopiedRoomId={showRoomIdTooltip}
+              onGoHome={goHome}
+              onCopyRoomId={handleCopyRoomId}
+              onShowQr={() => setShowQr(true)}
+            />
 
             <div className="relative mb-6 w-full max-w-3xl rounded-xl border border-white/10 bg-[#111214]/50 p-4 shadow-2xl backdrop-blur-md sm:p-5">
               {fileTransferItems.map((f, idx) => (
@@ -241,28 +196,6 @@ export default function SendPage() {
                 </div>
               ))}
             </div>
-
-            <div className="flex flex-col items-center gap-4">
-              <div className="flex items-center gap-6 text-sm sm:gap-12">
-                <div className="flex flex-col items-center gap-1">
-                  <div className="text-accent flex items-center gap-2 font-medium">
-                    <CheckCircle2 size={18} /> Total Success
-                  </div>
-                </div>
-
-                <div className="h-8 w-px bg-white/10" />
-
-                <div className="flex flex-col items-center gap-1">
-                  <div className="flex items-center gap-2 font-medium text-red-400">
-                    <XCircle size={18} /> total Error
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-6 py-2.5 font-mono text-xs text-red-400 sm:text-sm">
-                err msg
-              </div>
-            </div>
           </main>
 
           <Footer />
@@ -304,23 +237,7 @@ export default function SendPage() {
                   </div>
                   <p className="mt-6 text-center font-mono text-sm leading-relaxed text-white/50">
                     Scan this QR code with your mobile device to join room{" "}
-                    <span className="inline-flex items-center gap-2 text-white">
-                      <span>{roomId || "25232"}</span>
-                      <span className="relative inline-flex">
-                        <button
-                          onClick={handleCopyRoomId}
-                          className="cursor-pointer text-white/55 transition-colors hover:text-white"
-                          aria-label="Copy room ID"
-                        >
-                          <Copy size={14} />
-                        </button>
-                        {showRoomIdTooltip && (
-                          <span className="pointer-events-none absolute top-full left-1/2 z-10 mt-2 -translate-x-1/2 rounded-md border border-white/10 bg-surface px-2 py-1 font-mono text-[10px] tracking-[0.05em] whitespace-nowrap text-white/75 shadow-lg">
-                            Copied
-                          </span>
-                        )}
-                      </span>
-                    </span>
+                    <span className="text-white">{roomId}</span>
                   </p>
                 </div>
               </motion.div>

@@ -111,6 +111,34 @@ export class PeerSession {
     this.setSocket(null);
   }
 
+  reset() {
+    this.ctrlChannel?.close();
+    this.transferChannel?.close();
+    this._pc?.close();
+    this.socket?.close();
+    this.writableStream?.close().catch(() => undefined);
+
+    this.ctrlChannel = null;
+    this.transferChannel = null;
+    this._pc = null;
+    this.socket = null;
+    this.pendingCandidates = null;
+    this.remoteDescriptionSet = false;
+    this.roomId = "";
+    this.remotePeerId = "";
+    this.nextFileIndex = 0;
+    this.waitForAckResolver = null;
+    this.writeQueue = Promise.resolve();
+    this.bytesWrittenSinceAck = 0;
+    this.totalBytesReceived = 0;
+    this.lastStoreUpdateTime = Date.now();
+    this.lastBytes = 0;
+    this.currFile = null;
+    this.dirHandler = null;
+    this.fileHandler = null;
+    this.writableStream = null;
+  }
+
   private setcurrFile(file: FileTransferItem | null) {
     this.currFile = file;
   }

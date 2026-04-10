@@ -7,7 +7,7 @@ import useSignalling from "@/hooks/useSignalling";
 import { peerSession } from "@/lib/peerSession";
 import { useFileTransferStore } from "@/store/fileTransferStore";
 import { usePeerStore } from "@/store/peerStore";
-import { Send, Wifi } from "lucide-react";
+import { Send } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -102,17 +102,6 @@ export default function ReceivePage() {
               Peerflow
             </span>
           </Link>
-
-          {!showEntry && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-accent flex items-center gap-2 font-mono text-xs tracking-[0.06em] uppercase"
-            >
-              <Wifi size={18} />
-              <span className="hidden sm:inline">Connected</span>
-            </motion.div>
-          )}
         </nav>
 
         <AnimatePresence mode="wait">
