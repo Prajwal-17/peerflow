@@ -19,10 +19,12 @@ export default function ReceivePage() {
   const router = useRouter();
   useSignalling();
   const isConnected = usePeerStore((s) => s.isConnected);
+  const isRoomJoined = usePeerStore((s) => s.isRoomJoined);
   const fileTransferItems = useFileTransferStore(
     (state) => state.fileTransferItems,
   );
   const hasShownCompletionToast = useRef(false);
+  const autoJoinAttemptedRoomRef = useRef<string | null>(null);
 
   const paramRoomId = params?.roomId as string | undefined;
   const isEntry = !paramRoomId || paramRoomId === "enter"; // room entry state
@@ -34,6 +36,22 @@ export default function ReceivePage() {
   useEffect(() => {
     if (!isEntry && paramRoomId) setResolvedRoomId(paramRoomId);
   }, [isEntry, paramRoomId]);
+
+  useEffect(() => {
+    if (isEntry || !paramRoomId || !isConnected || isRoomJoined) {
+      return;
+    }
+
+    if (autoJoinAttemptedRoomRef.current === paramRoomId) {
+      return;
+    }
+
+    autoJoinAttemptedRoomRef.current = paramRoomId;
+    peerSession.setRoomId(paramRoomId);
+    usePeerStore.getState().setRoomId(paramRoomId);
+    peerSession.joinRoom();
+    setResolvedRoomId(paramRoomId);
+  }, [isConnected, isEntry, isRoomJoined, paramRoomId]);
 
   useEffect(() => {
     const isComplete =
@@ -66,6 +84,7 @@ export default function ReceivePage() {
       }
       peerSession.setRoomId(code);
       usePeerStore.getState().setRoomId(code);
+      autoJoinAttemptedRoomRef.current = code;
       peerSession.joinRoom();
       router.replace(`/${code}/receive`);
       setResolvedRoomId(code);
