@@ -47,12 +47,12 @@ bun install
 ## Running Locally
 
 ```bash
-// set env variables
+# set env variables
 NEXT_PUBLIC_SIGNALLING_SERVER=ws://localhost:8787/ws
 ```
 
 ```bash
-// start both signalling server & the frontend
+# start both signalling server & the frontend
 bun run dev
 ```
 
