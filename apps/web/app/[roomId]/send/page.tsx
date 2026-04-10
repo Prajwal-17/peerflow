@@ -15,6 +15,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import QRCode from "react-qr-code";
@@ -100,14 +101,17 @@ export default function SendPage() {
 
         <div className="z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col">
           <nav className="flex items-center justify-between border-b border-white/8 px-6 py-4 sm:px-8 sm:py-5">
-            <div className="flex items-center gap-2.5">
+            <Link
+              href="/"
+              className="flex items-center gap-2.5 transition-opacity hover:opacity-90"
+            >
               <div className="border-accent text-accent flex h-9 w-9 items-center justify-center rounded-lg border-[1.5px] shadow-[0_0_12px_rgba(0,229,160,0.3)]">
                 <Send size={20} />
               </div>
               <span className="text-[20px] font-bold tracking-[0.04em] text-white">
                 Peerflow
               </span>
-            </div>
+            </Link>
 
             <div className="text-accent flex items-center gap-2 font-mono text-xs tracking-[0.06em] uppercase">
               <Wifi size={18} />

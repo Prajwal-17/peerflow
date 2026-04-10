@@ -8,6 +8,7 @@ import { usePeerStore } from "@/store/peerStore";
 import { PEER_TYPE } from "@repo/types";
 import { Download, Send } from "lucide-react";
 import { motion } from "motion/react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
@@ -43,14 +44,17 @@ export default function HomePage() {
         <div className="z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col">
           {/* nav */}
           <nav className="flex items-center justify-between border-b border-white/8 px-6 py-4 sm:px-8 sm:py-5">
-            <div className="flex items-center gap-2.5">
+            <Link
+              href="/"
+              className="flex items-center gap-2.5 transition-opacity hover:opacity-90"
+            >
               <div className="border-accent text-accent flex h-9 w-9 items-center justify-center rounded-lg border-[1.5px] shadow-[0_0_12px_rgba(0,229,160,0.3)]">
                 <Send className="" size={20} />
               </div>
               <span className="text-[20px] font-bold tracking-[0.04em] text-white">
                 Peerflow
               </span>
-            </div>
+            </Link>
 
             {/* TODO: share from saved items & connect to nearby devices */}
             {/*<div className="flex items-center gap-5 sm:gap-8">
