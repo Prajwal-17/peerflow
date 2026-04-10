@@ -8,4 +8,10 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS",
   },
+  "routes": [
+    {
+      "pattern": "peerflow.prajwal.site",
+      "custom_domain": true,
+    },
+  ],
 }
