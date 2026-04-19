@@ -18,5 +18,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts",
   ],
-  "exclude": ["node_modules", ".dist", ".open-next"],
+  "exclude": ["node_modules", ".dist", ".open-next", ".open-next/**/*"],
 }
