@@ -10,7 +10,7 @@ import { Download, Send } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function HomePage() {
   const router = useRouter();
@@ -19,6 +19,16 @@ export default function HomePage() {
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/service-worker.js", { scope: "/" })
+        .then((registration) => console.log("scope is: ", registration.scope))
+        .catch((err) => console.log(err));
+    }
+  }, []);
+
   useSignalling();
   const {
     handleFilesSelected,

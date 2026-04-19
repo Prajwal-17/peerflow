@@ -1,18 +1,11 @@
 "use client";
 
-import { peerSession } from "@/lib/peerSession";
 import { useTransferSession } from "@/hooks/useTransferSession";
+import { peerSession } from "@/lib/peerSession";
 import { useFileTransferStore } from "@/store/fileTransferStore";
 import { formatETA, formatFileSize } from "@/utils";
 import { CTRL_CH_EVENT } from "@repo/types";
-import {
-  Check,
-  CheckCircle2,
-  Copy,
-  FileText,
-  X,
-  XCircle,
-} from "lucide-react";
+import { Check, CheckCircle2, Copy, FileText, X, XCircle } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import QRCode from "react-qr-code";
@@ -226,7 +219,6 @@ export default function TransferView({ roomId }: { roomId: string }) {
             </div>
           ))}
         </div>
-
       </main>
 
       <AnimatePresence>

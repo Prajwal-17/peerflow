@@ -37,9 +37,6 @@ export class PeerSession {
 
   // both sides
   private currFile: FileTransferItem | null = null;
-  private dirHandler: FileSystemDirectoryHandle | null = null;
-  private fileHandler: FileSystemFileHandle | null = null;
-  private writableStream: FileSystemWritableFileStream | null = null;
 
   get pc(): RTCPeerConnection {
     if (!this._pc) {
@@ -116,7 +113,6 @@ export class PeerSession {
     this.transferChannel?.close();
     this._pc?.close();
     this.socket?.close();
-    this.writableStream?.close().catch(() => undefined);
 
     this.ctrlChannel = null;
     this.transferChannel = null;
@@ -134,25 +130,10 @@ export class PeerSession {
     this.lastStoreUpdateTime = Date.now();
     this.lastBytes = 0;
     this.currFile = null;
-    this.dirHandler = null;
-    this.fileHandler = null;
-    this.writableStream = null;
   }
 
   private setcurrFile(file: FileTransferItem | null) {
     this.currFile = file;
-  }
-
-  setfileHandler(handler: FileSystemFileHandle | null) {
-    this.fileHandler = handler;
-  }
-
-  setDirHandler(handler: FileSystemDirectoryHandle | null) {
-    this.dirHandler = handler;
-  }
-
-  setWritableStream(stream: FileSystemWritableFileStream | null) {
-    this.writableStream = stream;
   }
 
   createRoomAndJoin() {
@@ -412,21 +393,7 @@ export class PeerSession {
         this.lastStoreUpdateTime = Date.now();
         this.bytesWrittenSinceAck = 0; // if sync ack not reset then transfer breaks after few files
 
-        if (!this.dirHandler) {
-          useFileTransferStore.getState().setShowIncomingBanner(true);
-          break;
-        }
-
-        const fileHandler = await this.dirHandler?.getFileHandle(
-          parsed.data.name,
-          {
-            create: true,
-          },
-        );
-        this.setfileHandler(fileHandler ?? null);
-
-        const writable = await fileHandler?.createWritable();
-        peerSession.setWritableStream(writable ?? null);
+        this.downloadFromURL(parsed.data.name); // using service-worker + streams API
 
         ctrlChannel?.send(
           JSON.stringify({
@@ -529,11 +496,11 @@ export class PeerSession {
             .getState()
             .updateProgress(this.currFile.id, 0, this.currFile.size, 0);
         }
-        if (this.writableStream) {
-          await this.writableStream.close();
-          this.setWritableStream(null);
-          this.setfileHandler(null);
-        }
+
+        navigator.serviceWorker.controller?.postMessage({
+          type: "eof",
+        });
+
         this.ctrlChannel?.send(
           JSON.stringify({
             type: CTRL_CH_EVENT.REQ_CURR_FILE_META,
@@ -552,18 +519,13 @@ export class PeerSession {
     const currFile = this.currFile;
     if (!currFile) return;
 
-    const writableStream = this.writableStream;
-    if (!writableStream) {
-      console.log("Error no writable stream");
-      return;
-    }
-
     const chunk = event.data;
 
     this.writeQueue = this.writeQueue.then(async () => {
       try {
         const chunkArray = new Uint8Array(chunk);
-        await writableStream?.write(chunkArray);
+        navigator.serviceWorker.controller?.postMessage(chunkArray);
+
         this.bytesWrittenSinceAck += chunk.byteLength;
 
         this.totalBytesReceived += chunk.byteLength;
@@ -604,6 +566,17 @@ export class PeerSession {
         type: CTRL_CH_EVENT.SYNC_ACK,
       }),
     );
+  }
+
+  private downloadFromURL(filename: string) {
+    const frame = document.createElement("iframe");
+    frame.style.display = "none";
+    frame.src = `/download-stream?filename=${filename}`;
+
+    document.body.appendChild(frame);
+    setTimeout(() => {
+      document.body.removeChild(frame);
+    }, 10000);
   }
 }
 
