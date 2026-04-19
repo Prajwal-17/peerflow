@@ -1,11 +1,9 @@
 "use client";
 
 import { useTransferSession } from "@/hooks/useTransferSession";
-import { peerSession } from "@/lib/peerSession";
 import { useFileTransferStore } from "@/store/fileTransferStore";
 import { formatETA, formatFileSize } from "@/utils";
-import { CTRL_CH_EVENT } from "@repo/types";
-import { Check, CheckCircle2, Copy, FileText, X, XCircle } from "lucide-react";
+import { CheckCircle2, Copy, FileText, X, XCircle } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import QRCode from "react-qr-code";
@@ -31,16 +29,9 @@ export default function TransferView({ roomId }: { roomId: string }) {
     };
   }, []);
 
-  const showIncomingBanner = useFileTransferStore(
-    (state) => state.showIncomingBanner,
-  );
-  const setShowIncomingBanner = useFileTransferStore(
-    (state) => state.setShowIncomingBanner,
-  );
   const fileTransferItems = useFileTransferStore(
     (state) => state.fileTransferItems,
   );
-  const currFile = useFileTransferStore((state) => state.currFile);
 
   const handleCopyRoomId = async () => {
     try {
@@ -59,45 +50,25 @@ export default function TransferView({ roomId }: { roomId: string }) {
     }
   };
 
-  const handleAccept = async () => {
-    const dirHandler = await window.showDirectoryPicker({
-      mode: "readwrite",
-      startIn: "downloads",
-    });
-
-    peerSession.setDirHandler(dirHandler);
-
-    if (!currFile) {
-      console.log("no curr file");
-      return;
-    }
-
-    const fileHandler = await dirHandler.getFileHandle(currFile?.name, {
-      create: true,
-    });
-    peerSession.setfileHandler(fileHandler);
-
-    const writable = await fileHandler.createWritable();
-    peerSession.setWritableStream(writable);
-
-    peerSession.ctrlChannel?.send(
-      JSON.stringify({
-        type: CTRL_CH_EVENT.TRANSFER_START,
-      }),
-    );
-  };
-
   return (
     <>
       <main className="flex flex-1 flex-col items-center px-6 pt-6 pb-6 sm:px-8 sm:pt-10 sm:pb-8">
         <TransferSessionCard
-          title={isTransferComplete ? "Files received" : "Receiving files"}
+          title={
+            fileTransferItems.length === 0
+              ? "Waiting for sender"
+              : isTransferComplete
+                ? "Files received"
+                : "Receiving files"
+          }
           description={
-            isTransferComplete
-              ? hasFailures
-                ? "The transfer finished with some errors. You will return home automatically shortly."
-                : "Everything selected by the sender has been saved. You will return home automatically shortly."
-              : "Keep this page open while files are being written to your device. Leaving now will stop the active transfer."
+            fileTransferItems.length === 0
+              ? "Connected successfully. Waiting for the sender to select files — they will download automatically."
+              : isTransferComplete
+                ? hasFailures
+                  ? "The transfer finished with some errors. You will return home automatically shortly."
+                  : "Everything selected by the sender has been saved. You will return home automatically shortly."
+                : "Keep this page open while files are being written to your device. Leaving now will stop the active transfer."
           }
           isComplete={isTransferComplete}
           redirectCountdown={redirectCountdown}
@@ -107,50 +78,6 @@ export default function TransferView({ roomId }: { roomId: string }) {
           onCopyRoomId={handleCopyRoomId}
           onShowQr={() => setShowQr(true)}
         />
-
-        <AnimatePresence>
-          {showIncomingBanner && (
-            <motion.div
-              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-              animate={{ opacity: 1, height: "auto", marginBottom: 24 }}
-              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-              className="w-full max-w-3xl overflow-hidden"
-            >
-              <div className="border-accent/30 bg-accent/10 flex flex-col items-center justify-between gap-4 rounded-xl border p-4 shadow-[0_4px_20px_rgba(0,229,160,0.1)] sm:flex-row sm:px-6">
-                <div className="flex items-center gap-4">
-                  <div className="text-accent flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/40">
-                    <FileText size={20} />
-                  </div>
-                  <div>
-                    <p className="text-[14px] font-medium text-white">
-                      Incoming files request
-                    </p>
-                    <p className="mt-0.5 text-[12px] text-white/60">
-                      Review the files below and confirm to receive.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex w-full items-center gap-3 sm:w-auto">
-                  <button
-                    onClick={() => setShowIncomingBanner(false)}
-                    className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-black/40 px-4 py-2 text-[13px] font-medium tracking-wide text-white transition-colors hover:bg-black/60 sm:flex-none"
-                  >
-                    <X size={16} className="text-red-400" /> Reject
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowIncomingBanner(false);
-                      handleAccept();
-                    }}
-                    className="bg-accent text-accent-foreground flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2 text-[13px] font-bold tracking-wide shadow-[0_0_15px_rgba(0,229,160,0.2)] transition-all hover:shadow-[0_0_25px_rgba(0,229,160,0.4)] sm:flex-none"
-                  >
-                    <Check size={16} /> Accept
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         <div className="relative mb-6 w-full max-w-3xl rounded-xl border border-white/10 bg-[#111214]/50 p-4 shadow-2xl backdrop-blur-md sm:p-5">
           {fileTransferItems.map((f, idx) => (

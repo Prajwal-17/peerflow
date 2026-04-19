@@ -12,4 +12,10 @@
   "durable_objects": {
     "bindings": [{ "name": "SIGNALLING", "class_name": "Signalling" }],
   },
+  "observability": {
+    "logs": {
+      "enabled": false,
+      "invocation_logs": true,
+    },
+  },
 }

@@ -10,11 +10,10 @@ import { Download, Send } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 export default function HomePage() {
   const router = useRouter();
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const setPeerType = usePeerStore((state) => state.setPeerType);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -30,11 +29,9 @@ export default function HomePage() {
   }, []);
 
   useSignalling();
-  const {
-    handleFilesSelected,
-    handleChooseFromDevice,
-    // handleChooseSavedItems, // TODO: saved items feature
-  } = useTransferSetup(dropdownRef, fileInputRef, setIsDropdownOpen);
+
+  const { handleFilesSelected, handleChooseFromDevice } =
+    useTransferSetup(fileInputRef);
 
   return (
     <>

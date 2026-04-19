@@ -1,7 +1,6 @@
 import { SOCKET_EVENT } from "@repo/types";
 import { DurableObject } from "cloudflare:workers";
 import { Env } from "hono";
-import { WSContext } from "hono/ws";
 import ShortUniqueId from "short-unique-id";
 
 type ConnectionState = {
@@ -11,7 +10,7 @@ type ConnectionState = {
 
 export class Signalling extends DurableObject<Env> {
   // roomId , peerId, WebSocket
-  rooms = new Map<string, Map<string, WSContext>>();
+  rooms = new Map<string, Map<string, WebSocket>>();
   uid = new ShortUniqueId({
     dictionary: "alpha_upper",
     length: 5,
@@ -58,7 +57,7 @@ export class Signalling extends DurableObject<Env> {
 
         this.rooms.set(newRoomId, new Map());
         const room = this.rooms.get(newRoomId);
-        room?.set(localPeerId, ws as any); // auto join sender
+        room?.set(localPeerId, ws); // auto join sender
         ws.send(
           JSON.stringify({
             type: SOCKET_EVENT.ROOM_JOINED,
