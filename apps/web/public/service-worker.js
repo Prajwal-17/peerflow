@@ -2,7 +2,7 @@
 
 /** @type {ServiceWorkerGlobalScope} */
 const sw = self;
-let streamController = null;
+const streamControllers = new Map();
 
 const installEvent = () => {
   sw.addEventListener("install", () => {
@@ -20,13 +20,16 @@ activateEvent();
 
 const listenEvent = () => {
   sw.addEventListener("message", (event) => {
-    if (!streamController) return;
+    const clientId = event.source.id;
+    const controller = streamControllers.get(clientId);
+    if (!controller) return;
+
     if (event.data.type === "eof") {
-      streamController.close();
-      streamController = null;
+      controller.close();
+      streamControllers.delete(clientId);
       return;
     }
-    streamController.enqueue(event.data);
+    controller.enqueue(event.data);
   });
 };
 listenEvent();
@@ -38,9 +41,12 @@ const fetchEvent = () => {
     if (url.pathname === "/download-stream") {
       const filename = url.searchParams.get("filename");
 
+      // to isolate data streams else when 2 tab are opened in browser they send msg to themselves
+      const clientId = event.clientId;
+
       const stream = new ReadableStream({
         start(controller) {
-          streamController = controller;
+          streamControllers.set(clientId, controller);
         },
       });
 

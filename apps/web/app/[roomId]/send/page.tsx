@@ -29,7 +29,7 @@ export default function SendPage() {
   );
 
   useEffect(() => {
-    setInviteLink(window.location.href);
+    setInviteLink(`${window.location.origin}/${roomId}/receive`);
   }, [roomId]);
 
   useEffect(() => {

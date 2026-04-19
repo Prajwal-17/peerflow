@@ -76,13 +76,16 @@ export class PeerSession {
       (this.socket.readyState === WebSocket.OPEN ||
         this.socket.readyState === WebSocket.CONNECTING)
     ) {
+      if (this.socket.onmessage !== onMessage) {
+        this.socket.onmessage = onMessage;
+      }
       return;
     }
 
     const ws = new WebSocket(signalingUrl);
+    this.setSocket(ws);
 
     ws.onopen = () => {
-      this.setSocket(ws);
       usePeerStore.getState().setIsConnected(true);
       onOpen?.();
     };
