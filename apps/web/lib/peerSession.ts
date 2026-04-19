@@ -194,6 +194,8 @@ export class PeerSession {
           break;
       }
     };
+
+    this.listenOnDataChannel();
   }
 
   async handleIceCandidate(candidate: RTCIceCandidateInit) {
@@ -264,8 +266,6 @@ export class PeerSession {
       const answer = await this.pc.createAnswer();
       await this.pc.setLocalDescription(answer);
 
-      this.listenOnDataChannel();
-
       this.socket?.send(
         JSON.stringify({
           type: SOCKET_EVENT.ANSWER,
@@ -312,13 +312,20 @@ export class PeerSession {
       if (channel.label === "control") {
         this.ctrlChannel = channel;
         this.ctrlChannel.onmessage = this.listenOnCtrlChannel; // message handler set to onmessage event
-        this.ctrlChannel.onopen = () => {
+
+        const sendReady = () => {
           this.ctrlChannel?.send(
             JSON.stringify({
               type: CTRL_CH_EVENT.READY,
             }),
           );
         };
+
+        if (channel.readyState === "open") {
+          sendReady();
+        } else {
+          this.ctrlChannel.onopen = sendReady;
+        }
       }
       if (channel.label === "transfer") {
         this.transferChannel = channel;

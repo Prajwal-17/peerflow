@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  CheckCircle2,
-  Copy,
-  QrCode,
-  TimerReset,
-} from "lucide-react";
+import { CheckCircle2, Copy, QrCode, TimerReset } from "lucide-react";
 
 type TransferSessionCardProps = {
   title: string;

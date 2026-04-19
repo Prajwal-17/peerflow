@@ -129,73 +129,75 @@ export default function SendPage() {
               onShowQr={() => setShowQr(true)}
             />
 
-            <div className="relative mb-6 w-full max-w-3xl rounded-xl border border-white/10 bg-[#111214]/50 p-4 shadow-2xl backdrop-blur-md sm:p-5">
-              {fileTransferItems.map((f, idx) => (
-                <div
-                  key={idx}
-                  className="group relative rounded-lg border border-white/10 bg-black/40 p-3 transition-colors hover:border-white/20"
-                >
-                  <div className="flex items-start gap-3.5 sm:items-center">
-                    <div className="text-muted mt-0.5 rounded-md bg-white/5 p-2.5 transition-colors group-hover:text-white/80 sm:mt-0">
-                      <FileText size={18} />
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="mb-1.5 flex flex-col gap-0.5 sm:flex-row sm:items-end sm:justify-between sm:gap-0">
-                        <span className="truncate text-[14px] font-medium text-white">
-                          {f.name}
-                        </span>
-                        <span className="font-mono text-[12px] leading-none text-white">
-                          {f.size > 0
-                            ? Math.round((f.progressBytes / f.size) * 100)
-                            : 0}
-                          %
-                        </span>
+            {fileTransferItems.length > 0 && (
+              <div className="relative mb-6 w-full max-w-3xl rounded-xl border border-white/10 bg-[#111214]/50 p-4 shadow-2xl backdrop-blur-md sm:p-5">
+                {fileTransferItems.map((f, idx) => (
+                  <div
+                    key={idx}
+                    className="group relative rounded-lg border border-white/10 bg-black/40 p-3 transition-colors hover:border-white/20"
+                  >
+                    <div className="flex items-start gap-3.5 sm:items-center">
+                      <div className="text-muted mt-0.5 rounded-md bg-white/5 p-2.5 transition-colors group-hover:text-white/80 sm:mt-0">
+                        <FileText size={18} />
                       </div>
 
-                      <div className="mb-2 h-1 w-full overflow-hidden rounded-full bg-white/10">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{
-                            width: `${f.size > 0 ? (f.progressBytes / f.size) * 100 : 0}%`,
-                          }}
-                          transition={{ duration: 1, ease: "easeOut" }}
-                          className="bg-accent relative h-full rounded-full shadow-[0_0_10px_rgba(0,229,160,0.5)]"
-                        />
-                      </div>
-
-                      <div className="text-muted flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-[10.5px] leading-none">
-                        <span>
-                          {formatFileSize(f.progressBytes)} /{" "}
-                          {formatFileSize(f.size)}
-                        </span>
-                        {f.progressBytes > 0 &&
-                          f.status !== "success" &&
-                          f.status !== "failed" && (
-                            <>
-                              <span> {formatFileSize(f.speed)} /s</span>
-                              <span>~{formatETA(f.eta)} </span>
-                            </>
-                          )}
-                      </div>
-                    </div>
-
-                    <div className="ml-2 flex flex-col items-end justify-center sm:ml-3">
-                      {f.status === "success" && (
-                        <div className="text-accent bg-accent/10 border-accent/20 flex h-7 w-7 items-center justify-center rounded-full border">
-                          <CheckCircle2 size={14} />
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-1.5 flex flex-col gap-0.5 sm:flex-row sm:items-end sm:justify-between sm:gap-0">
+                          <span className="truncate text-[14px] font-medium text-white">
+                            {f.name}
+                          </span>
+                          <span className="font-mono text-[12px] leading-none text-white">
+                            {f.size > 0
+                              ? Math.round((f.progressBytes / f.size) * 100)
+                              : 0}
+                            %
+                          </span>
                         </div>
-                      )}
-                      {f.status === "failed" && (
-                        <div className="flex h-7 w-7 items-center justify-center rounded-full border border-red-400/20 bg-red-400/10 text-red-400">
-                          <X size={14} />
+
+                        <div className="mb-2 h-1 w-full overflow-hidden rounded-full bg-white/10">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{
+                              width: `${f.size > 0 ? (f.progressBytes / f.size) * 100 : 0}%`,
+                            }}
+                            transition={{ duration: 1, ease: "easeOut" }}
+                            className="bg-accent relative h-full rounded-full shadow-[0_0_10px_rgba(0,229,160,0.5)]"
+                          />
                         </div>
-                      )}
+
+                        <div className="text-muted flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-[10.5px] leading-none">
+                          <span>
+                            {formatFileSize(f.progressBytes)} /{" "}
+                            {formatFileSize(f.size)}
+                          </span>
+                          {f.progressBytes > 0 &&
+                            f.status !== "success" &&
+                            f.status !== "failed" && (
+                              <>
+                                <span> {formatFileSize(f.speed)} /s</span>
+                                <span>~{formatETA(f.eta)} </span>
+                              </>
+                            )}
+                        </div>
+                      </div>
+
+                      <div className="ml-2 flex flex-col items-end justify-center sm:ml-3">
+                        {f.status === "success" && (
+                          <div className="text-accent bg-accent/10 border-accent/20 flex h-7 w-7 items-center justify-center rounded-full border">
+                            <CheckCircle2 size={14} />
+                          </div>
+                        )}
+                        {f.status === "failed" && (
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full border border-red-400/20 bg-red-400/10 text-red-400">
+                            <X size={14} />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </main>
 
           <Footer />
