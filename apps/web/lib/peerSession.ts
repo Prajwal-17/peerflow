@@ -23,14 +23,11 @@ export class PeerSession {
 
   // sender
   private nextFileIndex = 0;
-  private waitForAckResolver: ((value?: unknown) => void) | null = null;
   private chunkSize = 128 * 1024; // 128KB
-  private MAX_BUFFER_THRESHOLD = 6 * 1024 * 1024; // 4MB
+  private MAX_BUFFER_THRESHOLD = 14 * 1024 * 1024; // 14MB
 
   // receiver
   private writeQueue: Promise<void> = Promise.resolve();
-  private bytesWrittenSinceAck: number = 0;
-  readonly ACK_THRESHOLD = 20 * 1024 * 1024; // 20MB
   private totalBytesReceived: number = 0;
   private lastStoreUpdateTime = Date.now();
   private lastBytes: number = 0;
@@ -126,9 +123,7 @@ export class PeerSession {
     this.roomId = "";
     this.remotePeerId = "";
     this.nextFileIndex = 0;
-    this.waitForAckResolver = null;
     this.writeQueue = Promise.resolve();
-    this.bytesWrittenSinceAck = 0;
     this.totalBytesReceived = 0;
     this.lastStoreUpdateTime = Date.now();
     this.lastBytes = 0;
@@ -401,7 +396,6 @@ export class PeerSession {
         this.totalBytesReceived = 0;
         this.lastBytes = 0;
         this.lastStoreUpdateTime = Date.now();
-        this.bytesWrittenSinceAck = 0; // if sync ack not reset then transfer breaks after few files
 
         this.downloadFromURL(parsed.data.name); // using service-worker + streams API
 
@@ -419,7 +413,6 @@ export class PeerSession {
         const transferChannel = this.transferChannel;
 
         let offset = 0;
-        let bytesSentSinceLastAck = 0;
 
         let lastBytes = 0;
         let lastStoreUpdateTime = Date.now();
@@ -444,21 +437,12 @@ export class PeerSession {
             });
           }
 
-          if (bytesSentSinceLastAck >= this.ACK_THRESHOLD) {
-            await new Promise<void>((resolve) => {
-              // eslint-disable-next-line
-              this.waitForAckResolver = resolve as any;
-            });
-            bytesSentSinceLastAck = 0;
-          }
-
           // send the pre read buffer
           const buffer = nextBuffer!;
           transferChannel.send(buffer);
 
           const bytesSent = buffer.byteLength;
           offset += bytesSent;
-          bytesSentSinceLastAck += bytesSent;
 
           // start reading the NEXT chunk while the current one is in flight
           const nextOffset = offset;
@@ -508,14 +492,6 @@ export class PeerSession {
         break;
       }
 
-      case CTRL_CH_EVENT.SYNC_ACK: {
-        if (this.waitForAckResolver) {
-          this.waitForAckResolver();
-          this.waitForAckResolver = null;
-        }
-        break;
-      }
-
       case CTRL_CH_EVENT.EOF: {
         await this.writeQueue;
 
@@ -555,13 +531,7 @@ export class PeerSession {
         const chunkArray = new Uint8Array(chunk);
         navigator.serviceWorker.controller?.postMessage(chunkArray);
 
-        this.bytesWrittenSinceAck += byteLength;
         this.totalBytesReceived += byteLength;
-
-        if (this.bytesWrittenSinceAck >= this.ACK_THRESHOLD) {
-          this.sendAckToSender();
-          this.bytesWrittenSinceAck = 0;
-        }
 
         if (Date.now() - this.lastStoreUpdateTime > 800) {
           const bytesDiff = this.totalBytesReceived - this.lastBytes;
@@ -588,14 +558,6 @@ export class PeerSession {
     });
   };
 
-  private sendAckToSender() {
-    this.ctrlChannel?.send(
-      JSON.stringify({
-        type: CTRL_CH_EVENT.SYNC_ACK,
-      }),
-    );
-  }
-
   private downloadFromURL(filename: string) {
     const frame = document.createElement("iframe");
     frame.style.display = "none";
@@ -604,7 +566,7 @@ export class PeerSession {
     document.body.appendChild(frame);
     setTimeout(() => {
       document.body.removeChild(frame);
-    }, 10000);
+    }, 3000);
   }
 }
 
