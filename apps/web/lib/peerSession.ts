@@ -428,6 +428,12 @@ export class PeerSession {
 
         transferChannel.bufferedAmountLowThreshold = this.MAX_BUFFER_THRESHOLD;
 
+        // speed optimization
+        // pre read the first chunk so we always have a buffer ready to send
+        let nextBuffer: ArrayBuffer | null = await currFile.file
+          .slice(0, chunkSize)
+          .arrayBuffer();
+
         while (offset < currFile.size) {
           if (transferChannel.bufferedAmount > this.MAX_BUFFER_THRESHOLD) {
             await new Promise<void>((resolve) => {
@@ -446,20 +452,29 @@ export class PeerSession {
             bytesSentSinceLastAck = 0;
           }
 
-          const chunk = currFile.file.slice(offset, offset + chunkSize);
-          const buffer = await chunk.arrayBuffer();
+          // send the pre read buffer
+          const buffer = nextBuffer!;
           transferChannel.send(buffer);
 
           const bytesSent = buffer.byteLength;
           offset += bytesSent;
           bytesSentSinceLastAck += bytesSent;
 
+          // start reading the NEXT chunk while the current one is in flight
+          const nextOffset = offset;
+          const readAhead =
+            nextOffset < currFile.size
+              ? currFile.file
+                  .slice(nextOffset, nextOffset + chunkSize)
+                  .arrayBuffer()
+              : null;
+
+          // UI progress update
           if (Date.now() - lastStoreUpdateTime > 800) {
             const bytesDiff = offset - lastBytes;
             const timeDiff = Date.now() - lastStoreUpdateTime;
             const speed = bytesDiff / (timeDiff / 1000);
-            const rawEta =
-              speed > 0 ? (currFile.size - this.totalBytesReceived) / speed : 0;
+            const rawEta = speed > 0 ? (currFile.size - offset) / speed : 0;
             const eta = Math.round(rawEta);
 
             useFileTransferStore
@@ -469,6 +484,9 @@ export class PeerSession {
             lastBytes = offset;
             lastStoreUpdateTime = Date.now();
           }
+
+          // await the pre-read result for the next iteration
+          nextBuffer = readAhead ? await readAhead : null;
         }
 
         useFileTransferStore
@@ -529,16 +547,16 @@ export class PeerSession {
     const currFile = this.currFile;
     if (!currFile) return;
 
-    const chunk = event.data;
+    const chunk: ArrayBuffer = event.data;
+    const byteLength = chunk.byteLength;
 
     this.writeQueue = this.writeQueue.then(async () => {
       try {
         const chunkArray = new Uint8Array(chunk);
-        navigator.serviceWorker.controller?.postMessage([chunkArray.buffer]);
+        navigator.serviceWorker.controller?.postMessage(chunkArray);
 
-        this.bytesWrittenSinceAck += chunk.byteLength;
-
-        this.totalBytesReceived += chunk.byteLength;
+        this.bytesWrittenSinceAck += byteLength;
+        this.totalBytesReceived += byteLength;
 
         if (this.bytesWrittenSinceAck >= this.ACK_THRESHOLD) {
           this.sendAckToSender();
