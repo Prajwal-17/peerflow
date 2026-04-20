@@ -9,8 +9,6 @@ type ConnectionState = {
 };
 
 export class Signalling extends DurableObject<Env> {
-  // roomId , peerId, WebSocket
-  rooms = new Map<string, Map<string, WebSocket>>();
   uid = new ShortUniqueId({
     dictionary: "alpha_upper",
     length: 5,
@@ -30,11 +28,17 @@ export class Signalling extends DurableObject<Env> {
   }
 
   broadcastToRoom = (roomId: string, localPeerId: string, payload: any) => {
-    const room = this.rooms.get(roomId);
-    if (!room) return;
-    for (const [peerId, ws] of room.entries()) {
-      if (peerId !== localPeerId) {
-        ws.send(JSON.stringify({ ...payload }));
+    const sockets = this.ctx.getWebSockets();
+
+    for (const socket of sockets) {
+      const attachment = socket.deserializeAttachment() as ConnectionState;
+
+      if (
+        attachment &&
+        attachment.roomId === roomId &&
+        attachment.peerId !== localPeerId
+      ) {
+        socket.send(JSON.stringify(payload));
       }
     }
   };
@@ -46,23 +50,18 @@ export class Signalling extends DurableObject<Env> {
     let attachment = ws.deserializeAttachment() as ConnectionState;
     attachment.peerId = localPeerId;
 
-    // switch
     switch (type) {
       case SOCKET_EVENT.CREATE_ROOM: {
         const newRoomId = this.uid.randomUUID();
 
         attachment.roomId = newRoomId;
         ws.serializeAttachment(attachment);
-        // currentRoomId = newRoomId;
 
-        this.rooms.set(newRoomId, new Map());
-        const room = this.rooms.get(newRoomId);
-        room?.set(localPeerId, ws); // auto join sender
         ws.send(
           JSON.stringify({
             type: SOCKET_EVENT.ROOM_JOINED,
             roomId: newRoomId,
-            redirect: true, // redirect to /roomId/send
+            redirect: true,
             msg: "Successfully joined room",
           }),
         );
@@ -70,24 +69,36 @@ export class Signalling extends DurableObject<Env> {
       }
 
       case SOCKET_EVENT.JOIN_ROOM: {
-        if (!roomId || !this.rooms.has(roomId)) {
+        const sockets = this.ctx.getWebSockets();
+
+        let roomExists = false;
+        for (const socket of sockets) {
+          const targetAttachment =
+            socket.deserializeAttachment() as ConnectionState;
+          if (targetAttachment && targetAttachment.roomId === roomId) {
+            roomExists = true;
+            break;
+          }
+        }
+
+        if (!roomExists) {
           ws.send(
             JSON.stringify({
               type: SOCKET_EVENT.ERROR,
               msg: "Room not found",
             }),
           );
+          break;
         }
+
         attachment.roomId = roomId;
         ws.serializeAttachment(attachment);
 
-        const room = this.rooms.get(roomId);
-        room?.set(localPeerId, ws as any);
         ws.send(
           JSON.stringify({
             type: SOCKET_EVENT.ROOM_JOINED,
             roomId: roomId,
-            redirect: false, // redirect to /roomId/receive
+            redirect: false,
             msg: "Joined",
           }),
         );
@@ -119,16 +130,25 @@ export class Signalling extends DurableObject<Env> {
   }
 
   webSocketClose(ws: WebSocket): void | Promise<void> {
-    const { roomId, peerId } = ws.deserializeAttachment() as ConnectionState;
+    const attachment = ws.deserializeAttachment() as ConnectionState;
+    if (!attachment) return;
+
+    const { roomId, peerId } = attachment;
 
     if (roomId && peerId) {
-      const room = this.rooms.get(roomId);
+      const sockets = this.ctx.getWebSockets();
 
-      room?.delete(peerId);
+      let roomStillHasPeers = false;
+      for (const socket of sockets) {
+        const targetAttachment =
+          socket.deserializeAttachment() as ConnectionState;
+        if (targetAttachment && targetAttachment.roomId === roomId) {
+          roomStillHasPeers = true;
+          break;
+        }
+      }
 
-      if (room?.size === 0) {
-        this.rooms.delete(roomId);
-      } else {
+      if (roomStillHasPeers) {
         this.broadcastToRoom(roomId, peerId, {
           type: SOCKET_EVENT.LEAVE_ROOM,
           peerId: peerId,
