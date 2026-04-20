@@ -24,13 +24,13 @@ export class PeerSession {
   // sender
   private nextFileIndex = 0;
   private waitForAckResolver: ((value?: unknown) => void) | null = null;
-  private chunkSize = 16 * 1024; // 16KB
-  private MAX_BUFFER_THRESHOLD = 64 * 1024; // 64KB
+  private chunkSize = 128 * 1024; // 128KB
+  private MAX_BUFFER_THRESHOLD = 6 * 1024 * 1024; // 4MB
 
   // receiver
   private writeQueue: Promise<void> = Promise.resolve();
   private bytesWrittenSinceAck: number = 0;
-  readonly ACK_THRESHOLD = 5 * 1024 * 1024; // 5MB
+  readonly ACK_THRESHOLD = 20 * 1024 * 1024; // 20MB
   private totalBytesReceived: number = 0;
   private lastStoreUpdateTime = Date.now();
   private lastBytes: number = 0;
@@ -534,7 +534,7 @@ export class PeerSession {
     this.writeQueue = this.writeQueue.then(async () => {
       try {
         const chunkArray = new Uint8Array(chunk);
-        navigator.serviceWorker.controller?.postMessage(chunkArray);
+        navigator.serviceWorker.controller?.postMessage([chunkArray.buffer]);
 
         this.bytesWrittenSinceAck += chunk.byteLength;
 
