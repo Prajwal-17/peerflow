@@ -2,63 +2,48 @@
 
 /** @type {ServiceWorkerGlobalScope} */
 const sw = self;
-const streamControllers = new Map();
 
-const installEvent = () => {
-  sw.addEventListener("install", () => {
-    sw.skipWaiting();
-  });
-};
-installEvent();
+let activeController = null;
 
-const activateEvent = () => {
-  sw.addEventListener("activate", (event) => {
-    event.waitUntil(sw.clients.claim());
-  });
-};
-activateEvent();
+sw.addEventListener("install", () => {
+  sw.skipWaiting();
+});
 
-const listenEvent = () => {
-  sw.addEventListener("message", (event) => {
-    const clientId = event.source.id;
-    const controller = streamControllers.get(clientId);
-    if (!controller) return;
+sw.addEventListener("activate", (event) => {
+  event.waitUntil(sw.clients.claim());
+});
 
-    if (event.data.type === "eof") {
-      controller.close();
-      streamControllers.delete(clientId);
-      return;
-    }
-    controller.enqueue(event.data);
-  });
-};
-listenEvent();
+sw.addEventListener("message", (event) => {
+  if (!activeController) return;
 
-const fetchEvent = () => {
-  sw.addEventListener("fetch", (event) => {
-    const url = new URL(event.request.url);
+  if (event.data && event.data.type === "eof") {
+    activeController.close();
+    activeController = null;
+    return;
+  }
 
-    if (url.pathname === "/download-stream") {
-      const filename = url.searchParams.get("filename");
+  activeController.enqueue(event.data);
+});
 
-      // to isolate data streams else when 2 tab are opened in browser they send msg to themselves
-      const clientId = event.clientId;
+sw.addEventListener("fetch", (event) => {
+  const url = new URL(event.request.url);
 
-      const stream = new ReadableStream({
-        start(controller) {
-          streamControllers.set(clientId, controller);
+  if (url.pathname === "/download-stream") {
+    const filename = url.searchParams.get("filename");
+
+    const stream = new ReadableStream({
+      start(controller) {
+        activeController = controller;
+      },
+    });
+
+    event.respondWith(
+      new Response(stream, {
+        headers: {
+          "Content-Type": "application/octet-stream",
+          "Content-Disposition": `attachment; filename="${filename}"`,
         },
-      });
-
-      event.respondWith(
-        new Response(stream, {
-          headers: {
-            "Content-type": "application/octet-stream",
-            "Content-Disposition": `attachment; filename="${filename}"`,
-          },
-        }),
-      );
-    }
-  });
-};
-fetchEvent();
+      }),
+    );
+  }
+});
