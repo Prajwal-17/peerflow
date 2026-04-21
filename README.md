@@ -2,38 +2,23 @@
 
 Peerflow is a free file sharing app without a middleman server for file storage. It shares files directly between two devices using WebRTC data channels over UDP, with a lightweight signalling server only for room creation, room join, and peer negotiation.
 
-The goal is simple: open a room, connect another device, and transfer files directly without accounts, uploads, or forcing an app install on the receiver.
+**The goal is simple**: open a room, connect another device, and transfer files directly without accounts, uploads, or forcing an app install on the receiver.
+
+https://github.com/user-attachments/assets/2dec93b0-f183-4451-af62-b99a49c700a5
 
 ## What It Does
 
 - Creates a temporary room for 2 devices.
 - Connects those devices through WebRTC.
 - Transfers files directly from sender to receiver.
-- Keeps the signalling server out of the actual file path.
-- Lets the receiver save files directly to local storage.
 - Supports room sharing through a room ID and QR code.
 
 ## Tech Stack
 
-- Frontend: Next.js 16, ReactJS, Tailwind, Zustand, Sonner
+- Frontend: Next.js, ReactJS, Tailwind, Zustand
 - Realtime transfer: WebRTC DataChannels
 - Signalling: Cloudflare Workers + Durable Objects + WebSockets
 - Runtime and workspace tooling: Bun + Turborepo
-- Deployment:
-  - Web app via OpenNext for Cloudflare
-  - Signalling server via Wrangler
-
-## How It Works
-
-1. The sender selects files.
-2. A room is created through the signalling server.
-3. The sender shares the room ID or QR code.
-4. The receiver joins the room.
-5. Both peers complete WebRTC signalling.
-6. Files are transferred directly over the WebRTC transfer channel.
-7. The receiver writes files to disk locally.
-
-The signalling server helps peers find each other, but it does not store file contents.
 
 ## Getting Started
 
@@ -60,17 +45,15 @@ The web app runs on `http://localhost:4000`.
 
 ### Peerflow Sequence Diagram
 
-<details>
-    <summary>A full flow of how WebRTC transfer works</summary>
-
 ```mermaid
 ---
-title: WebRTC File Transfer Flow (Control + Transfer Channels)
+title: WebRTC File Transfer Flow (SW Interception)
 ---
 sequenceDiagram
     participant A as Sender (Peer A)
     participant S as Signaling Server
-    participant B as Receiver (Peer B)
+    participant B as Receiver Main Thread (Peer B)
+    participant SW as Service Worker (Peer B)
     participant STUN as STUN/TURN Server
 
     Note over A,B: 1. WebSocket Connection & Room Join
@@ -102,7 +85,7 @@ sequenceDiagram
 
     Note over A,B: ICE connectivity & DTLS handshake → DataChannels open
 
-    Note over A,B: 3. File Transfer Protocol (over control + transfer channels)
+    Note over A,SW: 3. File Transfer Protocol (Service Worker Interception)
 
     B->>B: Listen for DataChannel events (ondatachannel)
     B->>A: (control channel opens) → sends {type: "READY"}
@@ -116,40 +99,36 @@ sequenceDiagram
     A->>A: Get next file from list
     A->>B: (control) {type: "CURR_FILE_META", data: fileMeta}
 
-    B->>B: Store currFile, request directory permission if needed<br/>Create FileSystemFileHandle & writable stream
+    B->>B: Trigger download via <a> tag or iframe (e.g., /download/fileID)
+    B->>SW: Fetch request intercepted
+    SW-->>B: Respond with custom ReadableStream
     B->>A: (control) {type: "TRANSFER_START"}
 
     loop Send file chunks (with flow control)
         A->>A: If bufferedAmount > 64KB → wait for bufferedamountlow
         A->>A: If bytesSentSinceLastAck >= 5MB → wait for SYNC_ACK
         A->>B: (transfer channel) binary chunk
-        B->>B: Write chunk to disk (queue to avoid blocking)
+        
+        B->>SW: Forward chunk (postMessage / MessageChannel)
+        SW->>SW: controller.enqueue(chunk) → Browser auto-saves to disk
+        
         B->>B: Accumulate bytesWrittenSinceAck
             B->>A: (control) {type: "SYNC_ACK"}
             A->>A: Reset bytesSentSinceLastAck, continue
-        Note over A,B: Progress updates every 800ms (speed & ETA)
+        Note over A,SW: Progress updates every 800ms (speed & ETA)
     end
 
     A->>A: Wait for bufferedAmount === 0 (all chunks sent)
     A->>B: (control) {type: "EOF"}
 
-    B->>B: Close writable stream, clear fileHandler
+    B->>SW: Send EOF signal (postMessage)
+    SW->>SW: controller.close() → Browser finalizes file download
     B->>A: (control) {type: "REQ_CURR_FILE_META"}   (request next file)
 
-    Note over A,B: Repeat from REQ_CURR_FILE_META until all files sent
+    Note over A,SW: Repeat from REQ_CURR_FILE_META until all files sent
 
     A->>B: (control) {type: "ALL_DONE"} (when no more files)
-
 ```
-
-</details>
-
-## Notes
-
-- Code before migrating to Cloudflare:
-  - https://github.com/Prajwal-17/peerflow/tree/c2c4a263f90ba4a80d78fb33ecb553fc85baa3e1
-
-# Learnings
 
 **Reference Docs**
 
@@ -158,6 +137,8 @@ sequenceDiagram
   - https://developers.cloudflare.com/durable-objects/best-practices/websockets/
 - Lifecycle
   - https://developers.cloudflare.com/durable-objects/concepts/durable-object-lifecycle/
+
+# Learnings
 
 ## WebRTC
 
@@ -243,6 +224,7 @@ while (offset < currFile.size) {
   - After writing file to disk it updates `bytesWrittenSinceAck` if it hits threshold sends a acknowledgement msg back to sender.
 
 ```ts
+// (Not used currently - only used with FileSystem API)
 writeQueue: Promise<void> = Promise.resolve();
 
 private listenOnTransferChannel = async (event: MessageEvent) => {
@@ -273,6 +255,8 @@ this.writeQueue = this.writeQueue.then(async () => {
 ---
 
 ### Promise Queue
+
+`(Not used currently - only used with FileSystem API)`
 
 - In js receiving network data and writing data to file is asynchronous operation, So there is problem of race condidtion. eg. Like `chunk B` can be accidently written before `chunk A` hence corrupting file
 - A `Promise Queue` guarantees that code inside `.then(...)` does not get executed until previous promise has resolved
